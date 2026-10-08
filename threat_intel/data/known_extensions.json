@@ -1,0 +1,69 @@
+{
+    "chrome": {
+        "known_malicious": [
+            {"id": "bfjgbcejfgobgnpemgenefjloifabmhk", "name": "Flash Player Emulator", "reason": "Data exfiltration disguised as Flash emulator"},
+            {"id": "fkjhmlmcmpkdbngmlcjhccbfmkgifhho", "name": "PDF Converter", "reason": "Adware injection and browsing data collection"},
+            {"id": "ijghpmjlbadncnijgbfpbkgmjjclelef", "name": "VPN Free Unlimited", "reason": "Traffic interception and credential harvesting"},
+            {"id": "oekdnofhgehfliobjipnkmgebgpjcjgk", "name": "Quick Translation", "reason": "Keylogging and search hijacking"},
+            {"id": "jgkpijlhkjjabhnebhbdllmfdacbdkag", "name": "Auto Refresh Plus", "reason": "Cryptomining and ad injection"},
+            {"id": "lifbcibllhkdhoafpjfnlhfpfgnpldfl", "name": "Internet Download Manager", "reason": "Counterfeit extension distributing malware"},
+            {"id": "kggjnmmcaefdbbibhpajfahdgijhjcio", "name": "Netflix Party Plus", "reason": "Cookie theft and Facebook token stealing"},
+            {"id": "aeclbmokfjieekmdhchilnpjijdgdpoe", "name": "ChatGPT for Search", "reason": "Counterfeit ChatGPT extension stealing session cookies"}
+        ],
+        "known_legitimate": [
+            {"id": "cjpalhdlnbpafiamejdnhcphjbkeiagm", "name": "uBlock Origin"},
+            {"id": "gcbommkclmhbdidlbnpbljhbcadmahoj", "name": "1Password"},
+            {"id": "nngceckbapebfimnlniiiahkandclblb", "name": "Bitwarden"},
+            {"id": "hdokiejnpimakedhajhdlcegeplioahd", "name": "LastPass"},
+            {"id": "bmnlcjabgnpnenekpadlanbbkooimhnj", "name": "Honey"},
+            {"id": "gighmmpiobklfepjocnamgkkbiglidom", "name": "AdBlock"},
+            {"id": "cfhdojbkjhnklbpkdaibdccddilifddb", "name": "Adblock Plus"},
+            {"id": "aapbdbdomjkkjkaonfhkkikfgjllcleb", "name": "Google Translate"},
+            {"id": "efaidnbmnnnibpcajpcglclefindmkaj", "name": "Adobe Acrobat"},
+            {"id": "gomelomdnmfkpjbhknfignnhjclpglho", "name": "Todoist"},
+            {"id": "liecbddmkiiihnedobmlmillhodjkdmb", "name": "Loom"},
+            {"id": "bkhaagjahfmjljalopjnoealnfndnagc", "name": "Octotree"},
+            {"id": "ghbmnnjooekpmoecnnnilnnbdlolhkhi", "name": "Google Docs Offline"},
+            {"id": "nkbihfbeogaeaoehlefnkodbefgpgknn", "name": "MetaMask"},
+            {"id": "fdjamakpfbbddfjaooikfcpapjhoafdg", "name": "DarkReader"},
+            {"id": "mdjildafknihdnpekphojkbfhmijaelp", "name": "Grammarly"},
+            {"id": "laankejkbhbdhmipfmgcngdelahlfoji", "name": "StayFocusd"},
+            {"id": "hlepfoohegkhhmjieoechaddaejaokhf", "name": "Refined GitHub"},
+            {"id": "jnhgnonknehpejjnehehllkliplmbmhn", "name": "React Developer Tools"},
+            {"id": "lmhkpmbekcpmknklioeibfkpmmfibljd", "name": "Redux DevTools"}
+        ]
+    },
+    "edge": {
+        "known_malicious": [
+            {"id": "kfimphpgeeejaoldkmfblnfepmkiacjc", "name": "Super VPN Free", "reason": "Data harvesting and traffic interception"},
+            {"id": "pflphgoafnjaokpmhkejacfgbgpgokhj", "name": "Free Download Manager", "reason": "Adware and browser hijacking"},
+            {"id": "llimhhconnjiflfimocjggfjdlmlhblm", "name": "ChatGPT Helper", "reason": "Session cookie theft"}
+        ],
+        "known_legitimate": [
+            {"id": "cjpalhdlnbpafiamejdnhcphjbkeiagm", "name": "uBlock Origin"},
+            {"id": "jlhmfgmfgeifomenelglieieghnjghmh", "name": "1Password"},
+            {"id": "jbkfoedolllekgbhcbcoahefnbanhhlh", "name": "Bitwarden"},
+            {"id": "fdjamakpfbbddfjaooikfcpapjhoafdg", "name": "Dark Reader"},
+            {"id": "mdjildafknihdnpekphojkbfhmijaelp", "name": "Grammarly"},
+            {"id": "ghbmnnjooekpmoecnnnilnnbdlolhkhi", "name": "Google Docs Offline"}
+        ]
+    },
+    "firefox": {
+        "known_malicious": [
+            {"id": "{b1234567-fake-uuid-for-test-malicious}", "name": "Flash Video Downloader (Fake)", "reason": "Data exfiltration and ad injection"},
+            {"id": "{c9876543-fake-uuid-for-test-malware}", "name": "Free VPN Proxy", "reason": "Traffic interception and credential harvesting"}
+        ],
+        "known_legitimate": [
+            {"id": "uBlock0@raymondhill.net", "name": "uBlock Origin"},
+            {"id": "{d634138d-c276-4fc8-924b-40a0ea21d284}", "name": "1Password"},
+            {"id": "{446900e4-71c2-419f-a6a7-df9c091e268b}", "name": "Bitwarden"},
+            {"id": "addon@darkreader.org", "name": "Dark Reader"},
+            {"id": "87677a2c52b84ad3a151a4a72f5bd3c4@jetpack", "name": "Grammarly"},
+            {"id": "{73a6fe31-595d-460b-a920-fcc0f8843232}", "name": "NoScript"},
+            {"id": "https-everywhere@eff.org", "name": "HTTPS Everywhere"},
+            {"id": "jid1-MnnxcxisBPnSXQ@jetpack", "name": "Privacy Badger"},
+            {"id": "{b9db16a4-6edc-47ec-a1f4-b86292ed211d}", "name": "Video DownloadHelper"},
+            {"id": "firefox@tampermonkey.net", "name": "Tampermonkey"}
+        ]
+    }
+}
