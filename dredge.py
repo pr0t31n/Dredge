@@ -19,9 +19,18 @@ try:
         sys.path.insert(0, _sp)
     import pr0t31n_schema as _us
     import pr0t31n_event_log as _el
+    import pr0t31n_pause as _pp
 except ImportError:
     _us = None
     _el = None
+    _pp = None
+
+_pause: "_pp.PauseManager | None" = None  # type: ignore[name-defined]
+
+
+def _check_pause():
+    if _pause is not None and _pause.check_and_pause():
+        sys.exit(_pp.EXIT_PAUSED)
 
 from analyzers.system import SystemAnalyzer
 from analyzers.hardening import HardeningAnalyzer
@@ -277,6 +286,14 @@ def main():
     _status("Starting", 0, f"Dredge v{VERSION}")
     start_time = datetime.now(timezone.utc)
 
+    global _pause
+    _out_dir = Path(args.output_dir).resolve()
+    _out_dir.mkdir(parents=True, exist_ok=True)
+    if _pp is not None:
+        _pause = _pp.PauseManager(_out_dir, "dredge")
+        _pause.start_watcher(grace_period=60)
+        _pause.log_run_type(False)
+
     # Load collection data
     if args.collection:
         _log(f"Loading collection from {args.collection}")
@@ -322,10 +339,14 @@ def main():
     ti = ThreatIntelChecker()
     _log(f"Threat intel loaded: {ti.stats()}")
 
+    _check_pause()
+
     # Run analyzers
     _status("Analyzing", 10, "Running security analyzers")
     findings, analyzers_run, analyzers_failed = run_analyzers(
         data, hostname, ip, os_info, ti, skip=args.skip_analyzers)
+
+    _check_pause()
 
     # External tool parser ingestion
     _ext_parsers = {
@@ -380,6 +401,9 @@ def main():
     else:
         findings_path = write_output(
             findings, summary, args.output_dir, client_short=args.client)
+
+    if _pause is not None:
+        _pause.write_stop_reason("completed", "all_phases_done")
 
     _status("Complete", 100, f"{len(findings)} findings")
     _log(f"Analysis complete: {len(findings)} findings in {duration:.1f}s")
