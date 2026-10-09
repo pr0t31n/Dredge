@@ -24,6 +24,10 @@ class ActiveDirectoryAnalyzer(BaseAnalyzer):
         self._check_rbcd(ad)
         self._check_functional_level(ad)
         self._check_adminsd_holder(ad)
+        self._check_laps(ad)
+        self._check_krbtgt(ad)
+        self._check_stale_accounts(ad)
+        self._check_sid_history(ad)
         return self.findings
 
     # ------------------------------------------------------------------ #
@@ -559,4 +563,125 @@ class ActiveDirectoryAnalyzer(BaseAnalyzer):
                        "\n".join(accts[:20]),
                 remediation_effort="Moderate",
                 nist_800_53=["AC-6", "AC-2"],
+            )
+
+    def _check_laps(self, ad):
+        laps = self._get_section("laps_config", {})
+        if not isinstance(laps, dict):
+            return
+        if not laps.get("available", True):
+            return
+        legacy = laps.get("legacy_laps_installed", False)
+        windows_laps = laps.get("windows_laps_installed", False)
+        if not legacy and not windows_laps:
+            self._add_finding(
+                "DR-AD-011", "LAPS Not Deployed", "HIGH",
+                "Local Administrator Password Solution (LAPS) is not deployed. "
+                "Local administrator accounts likely share the same password "
+                "across multiple machines.",
+                "Without LAPS, compromising one local admin password grants access "
+                "to every machine sharing that password, enabling rapid lateral "
+                "movement across the domain.",
+                "Deploy Microsoft LAPS (legacy or Windows LAPS) to automatically "
+                "rotate local administrator passwords and store them securely in "
+                "Active Directory.",
+                remediation_effort="Moderate",
+                mitre_attack=[{"technique": "T1078.002", "tactic": "Persistence",
+                               "name": "Domain Accounts"}],
+                nist_800_53=["IA-5", "AC-6"],
+                pci_dss_4=["8.3.6"],
+            )
+
+    def _check_krbtgt(self, ad):
+        krbtgt_last_set = ad.get("krbtgt_password_last_set")
+        if not krbtgt_last_set:
+            return
+        try:
+            from datetime import datetime, timezone
+            last = datetime.fromisoformat(str(krbtgt_last_set).replace("Z", "+00:00"))
+            age_days = (datetime.now(timezone.utc) - last).days
+            if age_days > 180:
+                self._add_finding(
+                    "DR-AD-012", "krbtgt Key Not Rotated", "MEDIUM",
+                    f"The krbtgt account password has not been changed in {age_days} "
+                    f"days. Microsoft recommends rotating it at least every 180 days.",
+                    "The krbtgt account key is used to sign all Kerberos tickets. If "
+                    "compromised via a Golden Ticket attack, the attacker maintains "
+                    "persistent domain access until the key is rotated twice.",
+                    "Rotate the krbtgt password twice (with a delay of at least "
+                    "10 hours between resets to allow replication). Monitor for "
+                    "authentication failures after rotation.",
+                    output=f"krbtgt password age: {age_days} days",
+                    remediation_effort="Moderate",
+                    mitre_attack=[{"technique": "T1558.001", "tactic": "Credential Access",
+                                   "name": "Golden Ticket"}],
+                    nist_800_53=["IA-5"],
+                )
+        except Exception:
+            pass
+
+    def _check_stale_accounts(self, ad):
+        users = ad.get("users", [])
+        if not isinstance(users, list):
+            return
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc)
+        stale = []
+        for u in users:
+            if not isinstance(u, dict):
+                continue
+            last_logon = u.get("last_logon")
+            if not last_logon:
+                continue
+            try:
+                ll = datetime.fromisoformat(str(last_logon).replace("Z", "+00:00"))
+                if (now - ll).days > 90 and u.get("enabled", True):
+                    stale.append(u.get("samaccountname", u.get("name", "?")))
+            except Exception:
+                continue
+        if len(stale) > 5:
+            self._add_finding(
+                "DR-AD-013", "Stale Domain Accounts", "LOW",
+                f"{len(stale)} enabled domain accounts have not logged in for over "
+                f"90 days. Stale accounts increase the attack surface.",
+                "Stale accounts are prime targets for password spraying and "
+                "credential stuffing attacks because their passwords may be weak "
+                "or predictable, and compromise may go unnoticed.",
+                "Review and disable accounts not used in 90+ days. Implement an "
+                "automated account lifecycle process with regular reviews.",
+                output=f"Stale accounts ({len(stale)}):\n" +
+                       "\n".join(stale[:20]),
+                remediation_effort="Moderate",
+                mitre_attack=[{"technique": "T1078.002", "tactic": "Persistence",
+                               "name": "Domain Accounts"}],
+                nist_800_53=["AC-2"],
+            )
+
+    def _check_sid_history(self, ad):
+        users = ad.get("users", [])
+        if not isinstance(users, list):
+            return
+        sid_hist_users = []
+        for u in users:
+            if not isinstance(u, dict):
+                continue
+            sh = u.get("sid_history", [])
+            if isinstance(sh, list) and len(sh) > 0:
+                sid_hist_users.append(u.get("samaccountname", u.get("name", "?")))
+        if sid_hist_users:
+            self._add_finding(
+                "DR-AD-014", "SID History Abuse Risk", "MEDIUM",
+                f"{len(sid_hist_users)} account(s) have SID History entries. SID "
+                f"History can be abused to impersonate accounts from trusted domains.",
+                "An attacker with write access to AD can inject arbitrary SIDs into "
+                "an account's SID History, granting that account the privileges of "
+                "the injected SID — including Domain Admin from a trusted domain.",
+                "Remove unnecessary SID History entries. Monitor for SID History "
+                "changes (Event ID 4765). Implement SID Filtering on domain trusts.",
+                output=f"Accounts with SID History:\n" +
+                       "\n".join(sid_hist_users[:20]),
+                remediation_effort="Moderate",
+                mitre_attack=[{"technique": "T1134.005", "tactic": "Defense Evasion",
+                               "name": "SID-History Injection"}],
+                nist_800_53=["AC-6"],
             )

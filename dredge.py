@@ -36,6 +36,10 @@ from analyzers.event_logs import EventLogAnalyzer
 from analyzers.software import SoftwareAnalyzer
 from analyzers.certificates import CertificateAnalyzer
 from analyzers.compliance import ComplianceAnalyzer
+from analyzers.credential_exposure import CredentialExposureAnalyzer
+from analyzers.privilege_escalation import PrivilegeEscalationAnalyzer
+from analyzers.persistence import PersistenceAnalyzer
+from analyzers.adcs import ADCSAnalyzer
 
 from threat_intel.static_lists import ThreatIntelChecker
 from threat_intel.api_enrichment import enrich_findings
@@ -103,6 +107,10 @@ def run_analyzers(data, hostname, ip, os_info, threat_intel, skip=None):
         ("software", SoftwareAnalyzer),
         ("certificates", CertificateAnalyzer),
         ("compliance", ComplianceAnalyzer),
+        ("credential_exposure", CredentialExposureAnalyzer),
+        ("privilege_escalation", PrivilegeEscalationAnalyzer),
+        ("persistence", PersistenceAnalyzer),
+        ("adcs", ADCSAnalyzer),
     ]
 
     all_findings = []
@@ -248,6 +256,18 @@ def main():
                         help="Skip process hash checking (passed to remote collection)")
     parser.add_argument("--json", action="store_true",
                         help="Output findings as JSON to stdout")
+    parser.add_argument("--parse-seatbelt",
+                        help="Path to Seatbelt JSON output to ingest")
+    parser.add_argument("--parse-winpeas",
+                        help="Path to WinPEAS output to ingest")
+    parser.add_argument("--parse-hardeningkitty",
+                        help="Path to HardeningKitty CSV output to ingest")
+    parser.add_argument("--parse-bloodhound",
+                        help="Path to SharpHound JSON export directory to ingest")
+    parser.add_argument("--parse-pingcastle",
+                        help="Path to PingCastle XML report to ingest")
+    parser.add_argument("--parse-privesccheck",
+                        help="Path to PrivescCheck JSON output to ingest")
     parser.add_argument("--version", "-V", action="version",
                         version=f"Dredge v{VERSION}")
 
@@ -306,6 +326,34 @@ def main():
     _status("Analyzing", 10, "Running security analyzers")
     findings, analyzers_run, analyzers_failed = run_analyzers(
         data, hostname, ip, os_info, ti, skip=args.skip_analyzers)
+
+    # External tool parser ingestion
+    _ext_parsers = {
+        "seatbelt": ("parsers.seatbelt", "SeatbeltParser", args.parse_seatbelt),
+        "winpeas": ("parsers.winpeas", "WinPEASParser", args.parse_winpeas),
+        "hardeningkitty": ("parsers.hardeningkitty", "HardeningKittyParser", args.parse_hardeningkitty),
+        "bloodhound": ("parsers.bloodhound", "BloodHoundParser", args.parse_bloodhound),
+        "pingcastle": ("parsers.pingcastle", "PingCastleParser", args.parse_pingcastle),
+        "privesccheck": ("parsers.privesccheck", "PrivescCheckParser", args.parse_privesccheck),
+    }
+    for pname, (mod_path, cls_name, fpath) in _ext_parsers.items():
+        if not fpath:
+            continue
+        if not Path(fpath).exists():
+            _log(f"  {pname}: file not found: {fpath}", level="ERROR")
+            continue
+        _log(f"Ingesting {pname} output from {fpath}")
+        _status("Parsing", 75, f"Ingesting {pname}")
+        try:
+            import importlib
+            mod = importlib.import_module(mod_path)
+            parser_cls = getattr(mod, cls_name)
+            p = parser_cls(fpath, hostname=hostname, ip=ip)
+            ext_findings = p.parse()
+            findings.extend(ext_findings)
+            _log(f"  {pname}: {len(ext_findings)} findings ingested")
+        except Exception as e:
+            _log(f"  {pname} parser failed: {e}", level="ERROR")
 
     # API enrichment
     if not args.skip_enrichment and (args.vt_api_key or args.abuseipdb_key):

@@ -14,7 +14,9 @@
     registry_hardening, active_directory, certificates, shares,
     browser_chrome, browser_edge, browser_firefox, server_software,
     remote_management, cloud_software, event_logs, startup_items,
-    bitlocker, windows_backup
+    bitlocker, windows_backup, credential_exposure, privilege_escalation,
+    defender_detailed, adcs, persistence_mechanisms, powershell_config,
+    laps_config, print_config, dns_config, privacy_artifacts
 .PARAMETER Quiet
     Suppress progress output.
 .PARAMETER NoHash
@@ -46,7 +48,10 @@ $AllSections = @(
     "scheduled_tasks","user_accounts","security_policy","registry_hardening",
     "active_directory","certificates","shares","browser_chrome","browser_edge",
     "browser_firefox","server_software","remote_management","cloud_software",
-    "event_logs","startup_items","bitlocker","windows_backup"
+    "event_logs","startup_items","bitlocker","windows_backup",
+    "credential_exposure","privilege_escalation","defender_detailed","adcs",
+    "persistence_mechanisms","powershell_config","laps_config","print_config",
+    "dns_config","privacy_artifacts"
 )
 $TotalSections = $AllSections.Count
 
@@ -2203,6 +2208,1169 @@ function Collect-WindowsBackup {
 
 
 # ═══════════════════════════════════════════════════════════════
+# Section 27: Credential Exposure
+# ═══════════════════════════════════════════════════════════════
+function Collect-CredentialExposure {
+    $data = [ordered]@{}
+
+    # WiFi profiles with cleartext keys
+    try {
+        $profiles = @()
+        $raw = netsh wlan show profiles 2>$null
+        if ($raw) {
+            $profileNames = $raw | Select-String "All User Profile\s*:\s*(.+)" | ForEach-Object { $_.Matches[0].Groups[1].Value.Trim() }
+            foreach ($pn in $profileNames) {
+                $detail = netsh wlan show profile name="$pn" key=clear 2>$null
+                $auth = ($detail | Select-String "Authentication\s*:\s*(.+)" | Select-Object -First 1)
+                $cipher = ($detail | Select-String "Cipher\s*:\s*(.+)" | Select-Object -First 1)
+                $keyContent = ($detail | Select-String "Key Content\s*:\s*(.+)" | Select-Object -First 1)
+                $profiles += [ordered]@{
+                    name           = $pn
+                    authentication = if ($auth) { $auth.Matches[0].Groups[1].Value.Trim() } else { $null }
+                    cipher         = if ($cipher) { $cipher.Matches[0].Groups[1].Value.Trim() } else { $null }
+                    key_present    = ($null -ne $keyContent)
+                }
+            }
+        }
+        $data["wifi_profiles"] = $profiles
+    } catch {
+        $data["wifi_profiles"] = @()
+    }
+
+    # PuTTY saved sessions
+    try {
+        $putty = @()
+        $sessions = Get-ChildItem "HKCU:\Software\SimonTatham\PuTTY\Sessions" -ErrorAction SilentlyContinue
+        foreach ($s in $sessions) {
+            $props = Get-ItemProperty $s.PSPath -ErrorAction SilentlyContinue
+            $putty += [ordered]@{
+                name          = $s.PSChildName
+                hostname      = $props.HostName
+                username      = $props.UserName
+                public_key    = $props.PublicKeyFile
+            }
+        }
+        $data["putty_sessions"] = $putty
+    } catch {
+        $data["putty_sessions"] = @()
+    }
+
+    # WinSCP saved sessions
+    try {
+        $winscp = @()
+        $sessions = Get-ChildItem "HKCU:\Software\Martin Prikryl\WinSCP 2\Sessions" -ErrorAction SilentlyContinue
+        foreach ($s in $sessions) {
+            $props = Get-ItemProperty $s.PSPath -ErrorAction SilentlyContinue
+            $winscp += [ordered]@{
+                name          = $s.PSChildName
+                hostname      = $props.HostName
+                username      = $props.UserName
+                password_stored = ($null -ne $props.Password -and $props.Password -ne "")
+            }
+        }
+        $data["winscp_sessions"] = $winscp
+    } catch {
+        $data["winscp_sessions"] = @()
+    }
+
+    # FileZilla saved sessions
+    try {
+        $fzPath = Join-Path $env:APPDATA "FileZilla\sitemanager.xml"
+        if (Test-Path $fzPath) {
+            [xml]$fzXml = Get-Content $fzPath -ErrorAction SilentlyContinue
+            $fzSites = @()
+            $fzXml.SelectNodes("//Server") | ForEach-Object {
+                $fzSites += [ordered]@{
+                    host          = $_.Host
+                    user          = $_.User
+                    password_stored = ($null -ne $_.Pass -and $_.Pass -ne "")
+                }
+            }
+            $data["filezilla_sessions"] = $fzSites
+        } else {
+            $data["filezilla_sessions"] = @()
+        }
+    } catch {
+        $data["filezilla_sessions"] = @()
+    }
+
+    # RDP saved connections
+    try {
+        $rdp = @()
+        $servers = Get-ChildItem "HKCU:\Software\Microsoft\Terminal Server Client\Servers" -ErrorAction SilentlyContinue
+        foreach ($s in $servers) {
+            $props = Get-ItemProperty $s.PSPath -ErrorAction SilentlyContinue
+            $rdp += [ordered]@{
+                hostname      = $s.PSChildName
+                username_hint = $props.UsernameHint
+            }
+        }
+        $data["rdp_saved_connections"] = $rdp
+    } catch {
+        $data["rdp_saved_connections"] = @()
+    }
+
+    # Credential files on disk
+    try {
+        $credFiles = @()
+        $paths = @(
+            "C:\Windows\Panther\unattend.xml",
+            "C:\Windows\Panther\Unattend\unattend.xml",
+            "C:\Windows\System32\Sysprep\sysprep.xml",
+            "C:\Windows\System32\Sysprep\unattend.xml",
+            "C:\inetpub\wwwroot\web.config",
+            "C:\Windows\System32\inetsrv\config\applicationHost.config",
+            "C:\ProgramData\McAfee\Common Framework\SiteList.xml"
+        )
+        foreach ($p in $paths) {
+            if (Test-Path $p) {
+                $credFiles += [ordered]@{ path=$p; found=$true }
+            }
+        }
+        # GPP Groups.xml with cpassword
+        $sysvolPaths = @()
+        try {
+            $domain = (Get-CimInstance Win32_ComputerSystem).Domain
+            if ($domain -and $domain -ne "WORKGROUP") {
+                $gppBase = "\\$domain\SYSVOL\$domain\Policies"
+                if (Test-Path $gppBase) {
+                    $sysvolPaths = Get-ChildItem $gppBase -Recurse -Filter "Groups.xml" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName
+                }
+            }
+        } catch {}
+        foreach ($gpp in $sysvolPaths) {
+            $credFiles += [ordered]@{ path=$gpp; found=$true; type="gpp_groups_xml" }
+        }
+        $data["credential_files"] = $credFiles
+    } catch {
+        $data["credential_files"] = @()
+    }
+
+    # Cloud credential files
+    try {
+        $cloudCreds = [ordered]@{
+            aws_credentials   = Test-Path (Join-Path $env:USERPROFILE ".aws\credentials")
+            aws_config        = Test-Path (Join-Path $env:USERPROFILE ".aws\config")
+            azure_directory   = Test-Path (Join-Path $env:USERPROFILE ".azure")
+            gcloud_directory  = Test-Path (Join-Path $env:USERPROFILE ".config\gcloud")
+        }
+        $data["cloud_credentials"] = $cloudCreds
+    } catch {
+        $data["cloud_credentials"] = [ordered]@{}
+    }
+
+    # Windows Vault
+    try {
+        $vaultRaw = vaultcmd /list 2>$null
+        $data["windows_vault"] = if ($vaultRaw) { @($vaultRaw) } else { @() }
+    } catch {
+        $data["windows_vault"] = @()
+    }
+
+    # SSH private keys
+    try {
+        $sshKeys = @()
+        $sshDir = Join-Path $env:USERPROFILE ".ssh"
+        if (Test-Path $sshDir) {
+            $keyFiles = Get-ChildItem $sshDir -File -ErrorAction SilentlyContinue | Where-Object {
+                $_.Name -match "^id_(rsa|ed25519|ecdsa|dsa)$"
+            }
+            foreach ($kf in $keyFiles) {
+                $sshKeys += [ordered]@{ name=$kf.Name; path=$kf.FullName; size=$kf.Length }
+            }
+        }
+        $data["ssh_private_keys"] = $sshKeys
+    } catch {
+        $data["ssh_private_keys"] = @()
+    }
+
+    # KeePass database files
+    try {
+        $kdbx = @()
+        $searchPaths = @($env:USERPROFILE, $env:APPDATA, "$env:USERPROFILE\Documents", "$env:USERPROFILE\Desktop")
+        foreach ($sp in $searchPaths) {
+            if (Test-Path $sp) {
+                Get-ChildItem $sp -Recurse -Filter "*.kdbx" -ErrorAction SilentlyContinue -Depth 3 | ForEach-Object {
+                    $kdbx += [ordered]@{ path=$_.FullName; size=$_.Length; modified=Safe-ToISO $_.LastWriteTime }
+                }
+            }
+        }
+        $data["keepass_databases"] = $kdbx
+    } catch {
+        $data["keepass_databases"] = @()
+    }
+
+    # DPAPI master keys
+    try {
+        $protectDir = Join-Path $env:APPDATA "Microsoft\Protect"
+        $dpapi = [ordered]@{ protect_dir_exists = (Test-Path $protectDir); sids = @() }
+        if ($dpapi.protect_dir_exists) {
+            $dpapi["sids"] = @(Get-ChildItem $protectDir -Directory -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name)
+        }
+        $data["dpapi"] = $dpapi
+    } catch {
+        $data["dpapi"] = [ordered]@{ protect_dir_exists=$false; sids=@() }
+    }
+
+    return $data
+}
+
+
+# ═══════════════════════════════════════════════════════════════
+# Section 28: Privilege Escalation
+# ═══════════════════════════════════════════════════════════════
+function Collect-PrivilegeEscalation {
+    $data = [ordered]@{}
+
+    # AlwaysInstallElevated
+    try {
+        $data["always_install_elevated"] = [ordered]@{
+            hklm = Get-RegValue "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Installer" "AlwaysInstallElevated"
+            hkcu = Get-RegValue "HKCU:\SOFTWARE\Policies\Microsoft\Windows\Installer" "AlwaysInstallElevated"
+        }
+    } catch {
+        $data["always_install_elevated"] = [ordered]@{ hklm=$null; hkcu=$null }
+    }
+
+    # Modifiable service binaries
+    try {
+        $modifiable = @()
+        $currentUser = [System.Security.Principal.WindowsIdentity]::GetCurrent()
+        $services = Get-CimInstance Win32_Service | Where-Object { $_.PathName -and $_.State -eq "Running" }
+        foreach ($svc in $services) {
+            $binPath = $svc.PathName
+            # Extract the actual executable path (handle quotes and arguments)
+            if ($binPath -match '^"([^"]+)"') {
+                $exePath = $Matches[1]
+            } elseif ($binPath -match '^(\S+)') {
+                $exePath = $Matches[1]
+            } else { continue }
+
+            if (-not (Test-Path $exePath)) { continue }
+            try {
+                $acl = Get-Acl $exePath -ErrorAction SilentlyContinue
+                $writable = $false
+                foreach ($ace in $acl.Access) {
+                    if ($ace.FileSystemRights -match "Modify|FullControl|Write" -and
+                        $ace.AccessControlType -eq "Allow" -and
+                        $ace.IdentityReference.Value -notmatch "^(NT AUTHORITY\\SYSTEM|BUILTIN\\Administrators|NT SERVICE\\)") {
+                        $writable = $true
+                        break
+                    }
+                }
+                if ($writable) {
+                    $modifiable += [ordered]@{
+                        name=$svc.Name; display_name=$svc.DisplayName;
+                        path=$exePath; start_mode=$svc.StartMode
+                    }
+                }
+            } catch {}
+        }
+        $data["modifiable_service_binaries"] = $modifiable
+    } catch {
+        $data["modifiable_service_binaries"] = @()
+    }
+
+    # Unquoted service paths
+    try {
+        $unquoted = @()
+        $services = Get-CimInstance Win32_Service | Where-Object { $_.PathName -and $_.PathName -notmatch '^\s*"' }
+        foreach ($svc in $services) {
+            $p = $svc.PathName
+            if ($p -match " " -and $p -notmatch "^\\\\") {
+                $parts = $p.Split(" ")
+                $checkPaths = @()
+                for ($i = 0; $i -lt ($parts.Count - 1); $i++) {
+                    $candidate = ($parts[0..$i] -join " ") + ".exe"
+                    $parentDir = Split-Path $candidate -Parent -ErrorAction SilentlyContinue
+                    if ($parentDir -and (Test-Path $parentDir)) {
+                        $checkPaths += $candidate
+                    }
+                }
+                if ($checkPaths.Count -gt 0) {
+                    $unquoted += [ordered]@{
+                        name=$svc.Name; display_name=$svc.DisplayName;
+                        path=$p; hijack_candidates=@($checkPaths)
+                    }
+                }
+            }
+        }
+        $data["unquoted_service_paths"] = $unquoted
+    } catch {
+        $data["unquoted_service_paths"] = @()
+    }
+
+    # Token privileges
+    try {
+        $privRaw = whoami /priv 2>$null
+        $dangerousPrivs = @(
+            "SeImpersonatePrivilege","SeAssignPrimaryTokenPrivilege",
+            "SeBackupPrivilege","SeRestorePrivilege","SeDebugPrivilege",
+            "SeTcbPrivilege","SeLoadDriverPrivilege","SeTakeOwnershipPrivilege"
+        )
+        $privs = @()
+        if ($privRaw) {
+            foreach ($line in $privRaw) {
+                foreach ($dp in $dangerousPrivs) {
+                    if ($line -match $dp) {
+                        $enabled = $line -match "Enabled"
+                        $privs += [ordered]@{ privilege=$dp; enabled=$enabled }
+                    }
+                }
+            }
+        }
+        $data["dangerous_privileges"] = $privs
+    } catch {
+        $data["dangerous_privileges"] = @()
+    }
+
+    # DLL search order hijacking — writable directories in PATH
+    try {
+        $writablePath = @()
+        $pathDirs = $env:PATH -split ";"
+        foreach ($dir in $pathDirs) {
+            if (-not $dir -or -not (Test-Path $dir)) { continue }
+            try {
+                $acl = Get-Acl $dir -ErrorAction SilentlyContinue
+                foreach ($ace in $acl.Access) {
+                    if ($ace.FileSystemRights -match "Modify|FullControl|Write" -and
+                        $ace.AccessControlType -eq "Allow" -and
+                        $ace.IdentityReference.Value -notmatch "^(NT AUTHORITY\\SYSTEM|BUILTIN\\Administrators|NT SERVICE\\)") {
+                        $writablePath += [ordered]@{ directory=$dir; identity=$ace.IdentityReference.Value; rights=$ace.FileSystemRights.ToString() }
+                        break
+                    }
+                }
+            } catch {}
+        }
+        $data["writable_path_directories"] = $writablePath
+    } catch {
+        $data["writable_path_directories"] = @()
+    }
+
+    # Named pipes
+    try {
+        $pipes = @()
+        $pipeFiles = [System.IO.Directory]::GetFiles("\\.\pipe\") 2>$null
+        if ($pipeFiles) {
+            $attackPipes = @("spoolss","epmapper","samr","lsarpc","netlogon","wkssvc","browser","atsvc","srvsvc","winreg")
+            foreach ($pipe in $pipeFiles) {
+                $pipeName = [System.IO.Path]::GetFileName($pipe)
+                if ($attackPipes -contains $pipeName.ToLower()) {
+                    $pipes += $pipeName
+                }
+            }
+        }
+        $data["attack_relevant_pipes"] = $pipes
+    } catch {
+        $data["attack_relevant_pipes"] = @()
+    }
+
+    return $data
+}
+
+
+# ═══════════════════════════════════════════════════════════════
+# Section 29: Defender Detailed
+# ═══════════════════════════════════════════════════════════════
+function Collect-DefenderDetailed {
+    $data = [ordered]@{}
+
+    # ASR rules
+    try {
+        $pref = Get-MpPreference -ErrorAction SilentlyContinue
+        $asrIds = $pref.AttackSurfaceReductionRules_Ids
+        $asrActions = $pref.AttackSurfaceReductionRules_Actions
+        $asrRules = @()
+        if ($asrIds) {
+            for ($i = 0; $i -lt $asrIds.Count; $i++) {
+                $asrRules += [ordered]@{
+                    rule_id = $asrIds[$i]
+                    action  = if ($asrActions -and $i -lt $asrActions.Count) { $asrActions[$i] } else { $null }
+                }
+            }
+        }
+        $data["asr_rules"] = $asrRules
+    } catch {
+        $data["asr_rules"] = @()
+    }
+
+    # Controlled folder access
+    try {
+        $pref = Get-MpPreference -ErrorAction SilentlyContinue
+        $data["controlled_folder_access"] = [ordered]@{
+            enabled               = $pref.EnableControlledFolderAccess
+            allowed_applications  = @($pref.ControlledFolderAccessAllowedApplications)
+            protected_folders     = @($pref.ControlledFolderAccessProtectedFolders)
+        }
+    } catch {
+        $data["controlled_folder_access"] = [ordered]@{ enabled=$null }
+    }
+
+    # Network protection
+    try {
+        $data["network_protection"] = (Get-MpPreference -ErrorAction SilentlyContinue).EnableNetworkProtection
+    } catch {
+        $data["network_protection"] = $null
+    }
+
+    # Exploit protection
+    try {
+        $ep = Get-ProcessMitigation -System -ErrorAction SilentlyContinue
+        if ($ep) {
+            $data["exploit_protection"] = [ordered]@{
+                dep                  = $ep.DEP.Enable
+                aslr_bottom_up       = $ep.ASLR.BottomUp
+                aslr_force_relocate  = $ep.ASLR.ForceRelocateImages
+                aslr_high_entropy    = $ep.ASLR.HighEntropy
+                cfg                  = $ep.CFG.Enable
+                sehop                = $ep.SEHOP.Enable
+                heap_terminate       = $ep.Heap.TerminateOnError
+            }
+        } else {
+            $data["exploit_protection"] = $null
+        }
+    } catch {
+        $data["exploit_protection"] = $null
+    }
+
+    # All AV products
+    try {
+        $avProducts = @()
+        $avList = Get-CimInstance -Namespace root/SecurityCenter2 -ClassName AntiVirusProduct -ErrorAction SilentlyContinue
+        foreach ($av in $avList) {
+            $avProducts += [ordered]@{
+                display_name    = $av.displayName
+                product_state   = $av.productState
+                exe_path        = $av.pathToSignedProductExe
+                reporting_path  = $av.pathToSignedReportingExe
+            }
+        }
+        $data["av_products"] = $avProducts
+    } catch {
+        $data["av_products"] = @()
+    }
+
+    # Definition age
+    try {
+        $status = Get-MpComputerStatus -ErrorAction SilentlyContinue
+        if ($status -and $status.AntivirusSignatureLastUpdated) {
+            $age = (New-TimeSpan -Start $status.AntivirusSignatureLastUpdated -End (Get-Date)).Days
+            $data["definition_age_days"] = $age
+            $data["signature_last_updated"] = Safe-ToISO $status.AntivirusSignatureLastUpdated
+        } else {
+            $data["definition_age_days"] = $null
+            $data["signature_last_updated"] = $null
+        }
+    } catch {
+        $data["definition_age_days"] = $null
+        $data["signature_last_updated"] = $null
+    }
+
+    # Cloud protection
+    try {
+        $pref = Get-MpPreference -ErrorAction SilentlyContinue
+        $data["cloud_protection"] = [ordered]@{
+            maps_reporting        = $pref.MAPSReporting
+            submit_samples        = $pref.SubmitSamplesConsent
+            cloud_block_level     = $pref.CloudBlockLevel
+            cloud_extended_timeout = $pref.CloudExtendedTimeout
+        }
+    } catch {
+        $data["cloud_protection"] = [ordered]@{}
+    }
+
+    # Tamper protection
+    try {
+        $status = Get-MpComputerStatus -ErrorAction SilentlyContinue
+        $data["tamper_protection"] = $status.IsTamperProtected
+    } catch {
+        $data["tamper_protection"] = $null
+    }
+
+    # Real-time protection
+    try {
+        $status = Get-MpComputerStatus -ErrorAction SilentlyContinue
+        $data["realtime_protection"] = [ordered]@{
+            realtime_enabled     = $status.RealTimeProtectionEnabled
+            ioav_enabled         = $status.IoavProtectionEnabled
+            on_access_enabled    = $status.OnAccessProtectionEnabled
+            behavior_monitor     = $status.BehaviorMonitorEnabled
+        }
+    } catch {
+        $data["realtime_protection"] = [ordered]@{}
+    }
+
+    return $data
+}
+
+
+# ═══════════════════════════════════════════════════════════════
+# Section 30: AD Certificate Services
+# ═══════════════════════════════════════════════════════════════
+function Collect-ADCS {
+    $data = [ordered]@{}
+
+    if (-not (Get-CimInstance Win32_ComputerSystem).PartOfDomain) {
+        $data["domain_required"] = $true
+        $data["available"] = $false
+        return $data
+    }
+    $data["available"] = $true
+
+    # CA enumeration
+    try {
+        $caRaw = certutil -config - -ping 2>&1
+        $cas = @()
+        foreach ($line in $caRaw) {
+            if ($line -match '^\s*\d+\.\s+`(.+)\\(.+)`') {
+                $cas += [ordered]@{ host=$Matches[1]; ca_name=$Matches[2] }
+            } elseif ($line -match "Config string:\s*`(.+)`") {
+                $cas += [ordered]@{ config_string=$Matches[1] }
+            }
+        }
+        $data["certificate_authorities"] = $cas
+    } catch {
+        $data["certificate_authorities"] = @()
+    }
+
+    # Certificate templates
+    try {
+        $templateRaw = certutil -v -template 2>&1
+        $templates = @()
+        $current = $null
+        foreach ($line in $templateRaw) {
+            if ($line -match "^Template\[\d+\]:$") {
+                if ($current) { $templates += $current }
+                $current = [ordered]@{
+                    name=$null; schema_version=$null;
+                    name_flag=$null; enrollment_flag=$null;
+                    ekus=@(); ra_signature=$null;
+                    esc_indicators=@()
+                }
+            }
+            if ($null -eq $current) { continue }
+            if ($line -match "TemplatePropCommonName\s*=\s*(.+)") { $current.name = $Matches[1].Trim() }
+            if ($line -match "Schema Version\s*=\s*(\d+)") { $current.schema_version = [int]$Matches[1] }
+            if ($line -match "msPKI-Certificate-Name-Flag\s*=\s*(\S+)") { $current.name_flag = $Matches[1].Trim() }
+            if ($line -match "msPKI-Enrollment-Flag\s*=\s*(\S+)") { $current.enrollment_flag = $Matches[1].Trim() }
+            if ($line -match "pKIExtendedKeyUsage\s*=\s*(.+)") { $current.ekus = @($Matches[1].Trim() -split ",\s*") }
+            if ($line -match "msPKI-RA-Signature\s*=\s*(\d+)") { $current.ra_signature = [int]$Matches[1] }
+
+            # ESC1: ENROLLEE_SUPPLIES_SUBJECT + Client Authentication EKU
+            if ($current.name_flag -match "ENROLLEE_SUPPLIES_SUBJECT" -and ($current.ekus -contains "1.3.6.1.5.5.7.3.2")) {
+                if ("ESC1" -notin $current.esc_indicators) { $current.esc_indicators += "ESC1" }
+            }
+            # ESC2: Any Purpose (2.5.29.37.0) or no EKU
+            if ($current.ekus -contains "2.5.29.37.0" -or $current.ekus.Count -eq 0) {
+                if ("ESC2" -notin $current.esc_indicators) { $current.esc_indicators += "ESC2" }
+            }
+            # ESC3: Certificate Request Agent (1.3.6.1.4.1.311.20.2.1) with no RA sig
+            if ($current.ekus -contains "1.3.6.1.4.1.311.20.2.1" -and ($current.ra_signature -eq 0 -or $null -eq $current.ra_signature)) {
+                if ("ESC3" -notin $current.esc_indicators) { $current.esc_indicators += "ESC3" }
+            }
+        }
+        if ($current) { $templates += $current }
+        $data["templates"] = $templates
+    } catch {
+        $data["templates"] = @()
+    }
+
+    # ESC6: EDITF_ATTRIBUTESUBJECTALTNAME2 flag on CA
+    try {
+        $editFlagRaw = certutil -getreg policy\EditFlags 2>&1
+        $esc6 = $false
+        foreach ($line in $editFlagRaw) {
+            if ($line -match "EDITF_ATTRIBUTESUBJECTALTNAME2") { $esc6 = $true; break }
+        }
+        $data["esc6_editf_flag"] = $esc6
+    } catch {
+        $data["esc6_editf_flag"] = $null
+    }
+
+    # ESC8: HTTP enrollment endpoints
+    try {
+        $httpEnroll = @()
+        foreach ($ca in $data["certificate_authorities"]) {
+            if ($ca.host) {
+                $url = "http://$($ca.host)/certsrv/"
+                try {
+                    $resp = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 5 -ErrorAction SilentlyContinue
+                    $httpEnroll += [ordered]@{ ca_host=$ca.host; url=$url; accessible=$true; status_code=$resp.StatusCode }
+                } catch {
+                    $httpEnroll += [ordered]@{ ca_host=$ca.host; url=$url; accessible=$false }
+                }
+            }
+        }
+        $data["http_enrollment_endpoints"] = $httpEnroll
+    } catch {
+        $data["http_enrollment_endpoints"] = @()
+    }
+
+    return $data
+}
+
+
+# ═══════════════════════════════════════════════════════════════
+# Section 31: Persistence Mechanisms
+# ═══════════════════════════════════════════════════════════════
+function Collect-PersistenceMechanisms {
+    $data = [ordered]@{}
+
+    # WMI event subscriptions
+    try {
+        $filters = @()
+        Get-WmiObject -Namespace root/subscription -Class __EventFilter -ErrorAction SilentlyContinue | ForEach-Object {
+            $filters += [ordered]@{ name=$_.Name; query=$_.Query; query_language=$_.QueryLanguage }
+        }
+        $consumers = @()
+        Get-WmiObject -Namespace root/subscription -Class CommandLineEventConsumer -ErrorAction SilentlyContinue | ForEach-Object {
+            $consumers += [ordered]@{ name=$_.Name; command=$_.CommandLineTemplate; executable=$_.ExecutablePath }
+        }
+        Get-WmiObject -Namespace root/subscription -Class ActiveScriptEventConsumer -ErrorAction SilentlyContinue | ForEach-Object {
+            $consumers += [ordered]@{ name=$_.Name; scripting_engine=$_.ScriptingEngine; script_text=$_.ScriptText }
+        }
+        $bindings = @()
+        Get-WmiObject -Namespace root/subscription -Class __FilterToConsumerBinding -ErrorAction SilentlyContinue | ForEach-Object {
+            $bindings += [ordered]@{ filter=$_.Filter; consumer=$_.Consumer }
+        }
+        $data["wmi_subscriptions"] = [ordered]@{
+            filters=$filters; consumers=$consumers; bindings=$bindings
+        }
+    } catch {
+        $data["wmi_subscriptions"] = [ordered]@{ filters=@(); consumers=@(); bindings=@() }
+    }
+
+    # COM hijacking — user CLSID overrides
+    try {
+        $comHijacks = @()
+        $clsids = Get-ChildItem "HKCU:\Software\Classes\CLSID" -ErrorAction SilentlyContinue
+        foreach ($c in $clsids) {
+            $server = Get-ItemProperty "$($c.PSPath)\InprocServer32" -ErrorAction SilentlyContinue
+            if ($server -and $server.'(default)') {
+                $comHijacks += [ordered]@{ clsid=$c.PSChildName; dll=$server.'(default)' }
+            }
+            $localServer = Get-ItemProperty "$($c.PSPath)\LocalServer32" -ErrorAction SilentlyContinue
+            if ($localServer -and $localServer.'(default)') {
+                $comHijacks += [ordered]@{ clsid=$c.PSChildName; exe=$localServer.'(default)' }
+            }
+        }
+        $data["com_hijacks"] = $comHijacks
+    } catch {
+        $data["com_hijacks"] = @()
+    }
+
+    # AppInit_DLLs
+    try {
+        $data["appinit_dlls"] = [ordered]@{
+            dlls        = Get-RegValue "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Windows" "AppInit_DLLs"
+            load_enabled = Get-RegValue "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Windows" "LoadAppInit_DLLs"
+        }
+    } catch {
+        $data["appinit_dlls"] = [ordered]@{}
+    }
+
+    # IFEO debugger keys
+    try {
+        $ifeo = @()
+        $keys = Get-ChildItem "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options" -ErrorAction SilentlyContinue
+        foreach ($k in $keys) {
+            $debugger = Get-RegValue $k.PSPath "Debugger"
+            if ($debugger) {
+                $ifeo += [ordered]@{ target=$k.PSChildName; debugger=$debugger }
+            }
+        }
+        $data["ifeo_debuggers"] = $ifeo
+    } catch {
+        $data["ifeo_debuggers"] = @()
+    }
+
+    # Accessibility feature replacement
+    try {
+        $accFeatures = @()
+        $osInstall = (Get-CimInstance Win32_OperatingSystem).InstallDate
+        $targets = @("sethc.exe","utilman.exe","osk.exe","narrator.exe","magnify.exe")
+        foreach ($t in $targets) {
+            $fpath = Join-Path $env:SystemRoot "System32\$t"
+            if (Test-Path $fpath) {
+                $fi = Get-Item $fpath
+                $modified = $fi.LastWriteTime -gt $osInstall
+                $accFeatures += [ordered]@{
+                    file=$t; last_modified=Safe-ToISO $fi.LastWriteTime;
+                    os_install=Safe-ToISO $osInstall; modified_after_install=$modified
+                }
+            }
+        }
+        $data["accessibility_features"] = $accFeatures
+    } catch {
+        $data["accessibility_features"] = @()
+    }
+
+    # Print monitor DLLs
+    try {
+        $monitors = @()
+        $monKeys = Get-ChildItem "HKLM:\SYSTEM\CurrentControlSet\Control\Print\Monitors" -ErrorAction SilentlyContinue
+        foreach ($mk in $monKeys) {
+            $driver = Get-RegValue $mk.PSPath "Driver"
+            $monitors += [ordered]@{ name=$mk.PSChildName; driver=$driver }
+        }
+        $data["print_monitors"] = $monitors
+    } catch {
+        $data["print_monitors"] = @()
+    }
+
+    # Sysmon
+    try {
+        $sysmonInstalled = Test-Path "HKLM:\SYSTEM\CurrentControlSet\Services\SysmonDrv"
+        $sysmonConfig = $null
+        if ($sysmonInstalled) {
+            $raw = sysmon64 -c 2>&1
+            if (-not $raw -or $LASTEXITCODE -ne 0) { $raw = sysmon -c 2>&1 }
+            $sysmonConfig = @($raw)
+        }
+        $data["sysmon"] = [ordered]@{ installed=$sysmonInstalled; config=$sysmonConfig }
+    } catch {
+        $data["sysmon"] = [ordered]@{ installed=$false; config=$null }
+    }
+
+    # LSA packages
+    try {
+        $data["lsa_packages"] = [ordered]@{
+            authentication_packages = @(Get-RegValue "HKLM:\SYSTEM\CurrentControlSet\Control\Lsa" "Authentication Packages")
+            notification_packages   = @(Get-RegValue "HKLM:\SYSTEM\CurrentControlSet\Control\Lsa" "Notification Packages")
+            security_packages       = @(Get-RegValue "HKLM:\SYSTEM\CurrentControlSet\Control\Lsa" "Security Packages")
+        }
+    } catch {
+        $data["lsa_packages"] = [ordered]@{}
+    }
+
+    return $data
+}
+
+
+# ═══════════════════════════════════════════════════════════════
+# Section 32: PowerShell Configuration
+# ═══════════════════════════════════════════════════════════════
+function Collect-PowerShellConfig {
+    $data = [ordered]@{}
+
+    # .NET CLR versions
+    try {
+        $netVersions = @()
+        Get-ChildItem "HKLM:\SOFTWARE\Microsoft\NET Framework Setup\NDP" -Recurse -ErrorAction SilentlyContinue |
+            Get-ItemProperty -Name Version -ErrorAction SilentlyContinue | ForEach-Object {
+                if ($_.Version) {
+                    $netVersions += [ordered]@{ path=$_.PSPath -replace ".*\\NDP\\","NDP\\"; version=$_.Version }
+                }
+            }
+        $data["dotnet_versions"] = $netVersions
+    } catch {
+        $data["dotnet_versions"] = @()
+    }
+
+    # Language mode
+    try {
+        $data["language_mode"] = $ExecutionContext.SessionState.LanguageMode.ToString()
+    } catch {
+        $data["language_mode"] = $null
+    }
+
+    # AMSI providers
+    try {
+        $amsiProviders = @()
+        $providers = Get-ChildItem "HKLM:\SOFTWARE\Microsoft\AMSI\Providers" -ErrorAction SilentlyContinue
+        foreach ($p in $providers) {
+            $amsiProviders += $p.PSChildName
+        }
+        $data["amsi_providers"] = $amsiProviders
+    } catch {
+        $data["amsi_providers"] = @()
+    }
+
+    # Execution policy
+    try {
+        $policies = @()
+        Get-ExecutionPolicy -List | ForEach-Object {
+            $policies += [ordered]@{ scope=$_.Scope.ToString(); policy=$_.ExecutionPolicy.ToString() }
+        }
+        $data["execution_policy"] = $policies
+    } catch {
+        $data["execution_policy"] = @()
+    }
+
+    # PowerShell v2 engine
+    try {
+        $v2Feature = Get-WindowsOptionalFeature -Online -FeatureName MicrosoftWindowsPowerShellV2 -ErrorAction SilentlyContinue
+        if ($v2Feature) {
+            $data["powershell_v2"] = [ordered]@{ state=$v2Feature.State.ToString() }
+        } else {
+            $v2Reg = Get-RegValue "HKLM:\SOFTWARE\Microsoft\PowerShell\1\PowerShellEngine" "PowerShellVersion"
+            $data["powershell_v2"] = [ordered]@{ registry_version=$v2Reg }
+        }
+    } catch {
+        $data["powershell_v2"] = [ordered]@{}
+    }
+
+    # Console history presence
+    try {
+        $histPath = Join-Path $env:APPDATA "Microsoft\Windows\PowerShell\PSReadLine\ConsoleHost_history.txt"
+        $data["console_history"] = [ordered]@{
+            exists = Test-Path $histPath
+            line_count = if (Test-Path $histPath) { (Get-Content $histPath -ErrorAction SilentlyContinue | Measure-Object -Line).Lines } else { 0 }
+        }
+    } catch {
+        $data["console_history"] = [ordered]@{ exists=$false; line_count=0 }
+    }
+
+    # Transcription
+    try {
+        $data["transcription"] = [ordered]@{
+            enabled     = Get-RegValue "HKLM:\SOFTWARE\Policies\Microsoft\Windows\PowerShell\Transcription" "EnableTranscripting"
+            output_dir  = Get-RegValue "HKLM:\SOFTWARE\Policies\Microsoft\Windows\PowerShell\Transcription" "OutputDirectory"
+            invocation  = Get-RegValue "HKLM:\SOFTWARE\Policies\Microsoft\Windows\PowerShell\Transcription" "EnableInvocationHeader"
+        }
+    } catch {
+        $data["transcription"] = [ordered]@{}
+    }
+
+    # Script block logging
+    try {
+        $data["script_block_logging"] = Get-RegValue "HKLM:\SOFTWARE\Policies\Microsoft\Windows\PowerShell\ScriptBlockLogging" "EnableScriptBlockLogging"
+    } catch {
+        $data["script_block_logging"] = $null
+    }
+
+    # Module logging
+    try {
+        $data["module_logging"] = Get-RegValue "HKLM:\SOFTWARE\Policies\Microsoft\Windows\PowerShell\ModuleLogging" "EnableModuleLogging"
+    } catch {
+        $data["module_logging"] = $null
+    }
+
+    return $data
+}
+
+
+# ═══════════════════════════════════════════════════════════════
+# Section 33: LAPS Configuration
+# ═══════════════════════════════════════════════════════════════
+function Collect-LAPSConfig {
+    $data = [ordered]@{}
+
+    if (-not (Get-CimInstance Win32_ComputerSystem).PartOfDomain) {
+        $data["domain_required"] = $true
+        $data["available"] = $false
+        return $data
+    }
+    $data["available"] = $true
+
+    # Legacy LAPS DLL
+    try {
+        $data["legacy_laps_dll"] = Test-Path (Join-Path $env:ProgramFiles "LAPS\CSE\AdmPwd.dll")
+    } catch {
+        $data["legacy_laps_dll"] = $false
+    }
+
+    # Windows LAPS (new)
+    try {
+        $lapsState = Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\LAPS\State" -ErrorAction SilentlyContinue
+        $data["windows_laps_state"] = if ($lapsState) { [ordered]@{ present=$true } } else { [ordered]@{ present=$false } }
+    } catch {
+        $data["windows_laps_state"] = [ordered]@{ present=$false }
+    }
+
+    # LAPS policy
+    try {
+        $data["laps_policy"] = Get-RegValues "HKLM:\SOFTWARE\Policies\Microsoft Services\AdmPwd" @(
+            "AdmPwdEnabled","PwdExpirationProtectionEnabled",
+            "PasswordComplexity","PasswordLength","PasswordAgeDays"
+        )
+    } catch {
+        $data["laps_policy"] = [ordered]@{}
+    }
+
+    # ms-Mcs-AdmPwd attribute accessibility
+    try {
+        $searcher = [adsisearcher]"(&(objectClass=computer)(name=$env:COMPUTERNAME))"
+        $result = $searcher.FindOne()
+        $admpwd = $result.Properties["ms-mcs-admpwd"]
+        $data["admpwd_readable"] = ($null -ne $admpwd -and $admpwd.Count -gt 0)
+    } catch {
+        $data["admpwd_readable"] = $null
+    }
+
+    return $data
+}
+
+
+# ═══════════════════════════════════════════════════════════════
+# Section 34: Print Configuration
+# ═══════════════════════════════════════════════════════════════
+function Collect-PrintConfig {
+    $data = [ordered]@{}
+
+    # Print spooler status
+    try {
+        $spooler = Get-Service Spooler -ErrorAction SilentlyContinue
+        $data["spooler_service"] = [ordered]@{
+            status     = $spooler.Status.ToString()
+            start_type = $spooler.StartType.ToString()
+        }
+    } catch {
+        $data["spooler_service"] = [ordered]@{ status="Unknown"; start_type="Unknown" }
+    }
+
+    # Printer drivers
+    try {
+        $drivers = @()
+        if (Get-Command Get-PrinterDriver -ErrorAction SilentlyContinue) {
+            Get-PrinterDriver -ErrorAction SilentlyContinue | ForEach-Object {
+                $drivers += [ordered]@{
+                    name=$_.Name; environment=$_.PrinterEnvironment; provider=$_.Provider
+                }
+            }
+        }
+        $data["printer_drivers"] = $drivers
+    } catch {
+        $data["printer_drivers"] = @()
+    }
+
+    # Point-and-Print restrictions
+    try {
+        $data["point_and_print"] = Get-RegValues "HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Printers\PointAndPrint" @(
+            "RestrictDriverInstallationToAdministrators",
+            "NoWarningNoElevationOnInstall",
+            "UpdatePromptSettings",
+            "TrustedServers",
+            "ServerList"
+        )
+    } catch {
+        $data["point_and_print"] = [ordered]@{}
+    }
+
+    # PrintNightmare mitigation
+    try {
+        $restrict = Get-RegValue "HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Printers\PointAndPrint" "RestrictDriverInstallationToAdministrators"
+        $data["printnightmare_mitigated"] = ($restrict -eq 1)
+        $data["restrict_driver_install"] = $restrict
+    } catch {
+        $data["printnightmare_mitigated"] = $null
+        $data["restrict_driver_install"] = $null
+    }
+
+    # RPC configuration
+    try {
+        $data["rpc_config"] = Get-RegValues "HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Printers\RPC" @(
+            "RpcUseNamedPipeProtocol",
+            "RpcAuthentication",
+            "RpcProtocols"
+        )
+    } catch {
+        $data["rpc_config"] = [ordered]@{}
+    }
+
+    return $data
+}
+
+
+# ═══════════════════════════════════════════════════════════════
+# Section 35: DNS Configuration
+# ═══════════════════════════════════════════════════════════════
+function Collect-DnsConfig {
+    $data = [ordered]@{}
+
+    # Check if DNS service exists
+    $dnsService = Get-Service DNS -ErrorAction SilentlyContinue
+    if (-not $dnsService) {
+        $data["dns_role_installed"] = $false
+        return $data
+    }
+    $data["dns_role_installed"] = $true
+    $data["dns_service_status"] = $dnsService.Status.ToString()
+    $data["dns_service_start_type"] = $dnsService.StartType.ToString()
+
+    # Zone transfer settings
+    try {
+        $zones = @()
+        if (Get-Command Get-DnsServerZone -ErrorAction SilentlyContinue) {
+            Get-DnsServerZone -ErrorAction SilentlyContinue | ForEach-Object {
+                $zones += [ordered]@{
+                    name=$_.ZoneName; type=$_.ZoneType;
+                    secure_secondaries=$_.SecureSecondaries;
+                    secondary_servers=@($_.SecondaryServers)
+                }
+            }
+        }
+        $data["zones"] = $zones
+    } catch {
+        $data["zones"] = @()
+    }
+
+    # DNSSEC
+    try {
+        if (Get-Command Get-DnsServerDsSetting -ErrorAction SilentlyContinue) {
+            $dsSetting = Get-DnsServerDsSetting -ErrorAction SilentlyContinue
+            $data["dnssec"] = [ordered]@{
+                ds_polling_interval = $dsSetting.PollingInterval
+                tombstone_interval  = $dsSetting.TombstoneInterval
+            }
+        } else {
+            $data["dnssec"] = $null
+        }
+    } catch {
+        $data["dnssec"] = $null
+    }
+
+    # Debug logging
+    try {
+        if (Get-Command Get-DnsServerDiagnostics -ErrorAction SilentlyContinue) {
+            $diag = Get-DnsServerDiagnostics -ErrorAction SilentlyContinue
+            $data["debug_logging"] = [ordered]@{
+                queries=$diag.Queries; answers=$diag.Answers;
+                notifications=$diag.Notifications; updates=$diag.Update;
+                log_file_path=$diag.LogFilePath; max_size=$diag.MaxMBFileSize
+            }
+        } else {
+            $data["debug_logging"] = $null
+        }
+    } catch {
+        $data["debug_logging"] = $null
+    }
+
+    # Cache poisoning mitigations
+    try {
+        $dnscmdRaw = dnscmd /info 2>&1
+        $socketPool = $null
+        $cacheLocking = $null
+        foreach ($line in $dnscmdRaw) {
+            if ($line -match "SocketPoolSize\s*=\s*(\d+)") { $socketPool = [int]$Matches[1] }
+            if ($line -match "CacheLockingPercent\s*=\s*(\d+)") { $cacheLocking = [int]$Matches[1] }
+        }
+        $data["cache_poisoning_mitigations"] = [ordered]@{
+            socket_pool_size    = $socketPool
+            cache_locking_pct   = $cacheLocking
+        }
+    } catch {
+        $data["cache_poisoning_mitigations"] = [ordered]@{}
+    }
+
+    return $data
+}
+
+
+# ═══════════════════════════════════════════════════════════════
+# Section 36: Privacy Artifacts
+# ═══════════════════════════════════════════════════════════════
+function Collect-PrivacyArtifacts {
+    $data = [ordered]@{}
+
+    # Recent documents (MRU)
+    try {
+        $recentDocs = Get-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\RecentDocs" -ErrorAction SilentlyContinue
+        $mruCount = 0
+        if ($recentDocs) {
+            $mruCount = ($recentDocs.PSObject.Properties | Where-Object { $_.Name -match "^\d+$" }).Count
+        }
+        $data["recent_docs_count"] = $mruCount
+    } catch {
+        $data["recent_docs_count"] = 0
+    }
+
+    # TypedPaths
+    try {
+        $typedPaths = @()
+        $tp = Get-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\TypedPaths" -ErrorAction SilentlyContinue
+        if ($tp) {
+            $tp.PSObject.Properties | Where-Object { $_.Name -match "^url\d+$" } | ForEach-Object {
+                $typedPaths += $_.Value
+            }
+        }
+        $data["typed_paths"] = $typedPaths
+    } catch {
+        $data["typed_paths"] = @()
+    }
+
+    # Mapped network drives
+    try {
+        $mapped = @()
+        $psDrives = Get-PSDrive -PSProvider FileSystem -ErrorAction SilentlyContinue | Where-Object { $_.DisplayRoot -like "\\*" }
+        foreach ($d in $psDrives) {
+            $mapped += [ordered]@{ drive=$d.Name; unc=$d.DisplayRoot }
+        }
+        $regDrives = Get-ChildItem "HKCU:\Network" -ErrorAction SilentlyContinue
+        foreach ($rd in $regDrives) {
+            $props = Get-ItemProperty $rd.PSPath -ErrorAction SilentlyContinue
+            $mapped += [ordered]@{ drive=$rd.PSChildName; unc=$props.RemotePath; source="registry" }
+        }
+        $data["mapped_drives"] = $mapped
+    } catch {
+        $data["mapped_drives"] = @()
+    }
+
+    # UserAssist
+    try {
+        $userAssist = @()
+        $uaKeys = Get-ChildItem "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\UserAssist" -ErrorAction SilentlyContinue
+        foreach ($uak in $uaKeys) {
+            $countKey = Get-ChildItem "$($uak.PSPath)\Count" -ErrorAction SilentlyContinue
+            $entryCount = 0
+            if ($countKey) {
+                $entryCount = (Get-ItemProperty $countKey.PSPath -ErrorAction SilentlyContinue).PSObject.Properties.Count
+            } else {
+                $cp = Get-ItemProperty "$($uak.PSPath)\Count" -ErrorAction SilentlyContinue
+                if ($cp) { $entryCount = $cp.PSObject.Properties.Count }
+            }
+            $userAssist += [ordered]@{ guid=$uak.PSChildName; entry_count=$entryCount }
+        }
+        $data["user_assist"] = $userAssist
+    } catch {
+        $data["user_assist"] = @()
+    }
+
+    # BAM/DAM
+    try {
+        $bam = @()
+        $bamPath = "HKLM:\SYSTEM\CurrentControlSet\Services\bam\State\UserSettings"
+        if (Test-Path $bamPath) {
+            $sids = Get-ChildItem $bamPath -ErrorAction SilentlyContinue
+            foreach ($sid in $sids) {
+                $props = Get-ItemProperty $sid.PSPath -ErrorAction SilentlyContinue
+                $exes = @()
+                $props.PSObject.Properties | Where-Object { $_.Name -match "\\" } | ForEach-Object {
+                    $exes += $_.Name
+                }
+                $bam += [ordered]@{ sid=$sid.PSChildName; executable_count=$exes.Count; executables=$exes }
+            }
+        }
+        $data["bam_entries"] = $bam
+    } catch {
+        $data["bam_entries"] = @()
+    }
+
+    # Recently accessed files count
+    try {
+        $recentDir = Join-Path $env:APPDATA "Microsoft\Windows\Recent"
+        $data["recent_files_count"] = if (Test-Path $recentDir) { (Get-ChildItem $recentDir -ErrorAction SilentlyContinue).Count } else { 0 }
+    } catch {
+        $data["recent_files_count"] = 0
+    }
+
+    # Jump lists
+    try {
+        $autoDir = Join-Path $env:APPDATA "Microsoft\Windows\Recent\AutomaticDestinations"
+        $customDir = Join-Path $env:APPDATA "Microsoft\Windows\Recent\CustomDestinations"
+        $data["jump_lists"] = [ordered]@{
+            automatic_count = if (Test-Path $autoDir) { (Get-ChildItem $autoDir -ErrorAction SilentlyContinue).Count } else { 0 }
+            custom_count    = if (Test-Path $customDir) { (Get-ChildItem $customDir -ErrorAction SilentlyContinue).Count } else { 0 }
+        }
+    } catch {
+        $data["jump_lists"] = [ordered]@{ automatic_count=0; custom_count=0 }
+    }
+
+    return $data
+}
+
+
+# ═══════════════════════════════════════════════════════════════
 # Main execution
 # ═══════════════════════════════════════════════════════════════
 
@@ -2249,6 +3417,16 @@ $SectionMap = [ordered]@{
     "startup_items"       = { Collect-StartupItems }
     "bitlocker"           = { Collect-BitLocker }
     "windows_backup"      = { Collect-WindowsBackup }
+    "credential_exposure"   = { Collect-CredentialExposure }
+    "privilege_escalation"  = { Collect-PrivilegeEscalation }
+    "defender_detailed"     = { Collect-DefenderDetailed }
+    "adcs"                  = { Collect-ADCS }
+    "persistence_mechanisms" = { Collect-PersistenceMechanisms }
+    "powershell_config"     = { Collect-PowerShellConfig }
+    "laps_config"           = { Collect-LAPSConfig }
+    "print_config"          = { Collect-PrintConfig }
+    "dns_config"            = { Collect-DnsConfig }
+    "privacy_artifacts"     = { Collect-PrivacyArtifacts }
 }
 
 $idx = 0

@@ -41,6 +41,8 @@ class SystemAnalyzer(BaseAnalyzer):
         self._check_bitlocker()
         self._check_tpm()
         self._check_secure_boot()
+        self._check_printnightmare()
+        self._check_dns_zone_transfer()
         return self.findings
 
     def _check_eol(self):
@@ -302,4 +304,92 @@ class SystemAnalyzer(BaseAnalyzer):
                 remediation_effort="Moderate",
                 mitre_attack=[{"technique": "T1542.003", "tactic": "Persistence",
                                "name": "Bootkit"}],
+            )
+
+    def _check_printnightmare(self):
+        pc = self._get_section("print_config", {})
+        if not isinstance(pc, dict) or not pc:
+            return
+        spooler = pc.get("spooler_status", {})
+        if isinstance(spooler, dict) and spooler.get("status") != "Running":
+            return
+        pnp = pc.get("point_and_print", {})
+        if not isinstance(pnp, dict):
+            return
+        restrict = pnp.get("RestrictDriverInstallationToAdministrators")
+        if restrict is not None and int(restrict) == 0:
+            self._add_finding(
+                "DR-SYS-012", "PrintNightmare Vulnerable Configuration", "CRITICAL",
+                "The Print Spooler service is running with "
+                "RestrictDriverInstallationToAdministrators disabled. This "
+                "configuration is vulnerable to PrintNightmare (CVE-2021-34527).",
+                "PrintNightmare allows remote code execution and local privilege "
+                "escalation via the Print Spooler. An attacker can execute "
+                "arbitrary code as SYSTEM by loading a malicious printer driver.",
+                "Set RestrictDriverInstallationToAdministrators to 1 in "
+                "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Printers\\"
+                "PointAndPrint. Disable the Print Spooler if printing is not needed.",
+                cves="CVE-2021-34527",
+                remediation_effort="Easy",
+                cwe=["CWE-269"],
+                mitre_attack=[{"technique": "T1547.012", "tactic": "Persistence",
+                               "name": "Print Processors"}],
+                nist_800_53=["CM-6", "SI-2"],
+                pci_dss_4=["6.3.3"],
+            )
+        no_warn = pnp.get("NoWarningNoElevationOnInstall")
+        if no_warn is not None and int(no_warn) == 1:
+            self._add_finding(
+                "DR-SYS-012", "PrintNightmare Vulnerable Configuration", "CRITICAL",
+                "Point and Print NoWarningNoElevationOnInstall is enabled. "
+                "Printer driver installation proceeds silently without elevation, "
+                "leaving the system vulnerable to PrintNightmare.",
+                "This setting allows any user to install printer drivers without "
+                "an elevation prompt, enabling PrintNightmare exploitation for "
+                "local privilege escalation to SYSTEM.",
+                "Set NoWarningNoElevationOnInstall to 0 in HKLM\\SOFTWARE\\"
+                "Policies\\Microsoft\\Windows NT\\Printers\\PointAndPrint.",
+                cves="CVE-2021-34527",
+                remediation_effort="Easy",
+                cwe=["CWE-269"],
+                mitre_attack=[{"technique": "T1547.012", "tactic": "Persistence",
+                               "name": "Print Processors"}],
+            )
+
+    def _check_dns_zone_transfer(self):
+        dns = self._get_section("dns_config", {})
+        if not isinstance(dns, dict) or not dns:
+            return
+        if not dns.get("dns_service_running"):
+            return
+        zones = dns.get("zones", [])
+        if not isinstance(zones, list):
+            return
+        vuln_zones = []
+        for z in zones:
+            if not isinstance(z, dict):
+                continue
+            xfer = z.get("secondary_servers", z.get("secure_secondaries"))
+            if isinstance(xfer, int) and xfer == 0:
+                vuln_zones.append(z.get("zone_name", "?"))
+            elif isinstance(xfer, str) and xfer.lower() in ("any", "none"):
+                if xfer.lower() == "any":
+                    vuln_zones.append(z.get("zone_name", "?"))
+        if vuln_zones:
+            self._add_finding(
+                "DR-SYS-013", "DNS Zone Transfer Allowed", "MEDIUM",
+                f"DNS zone transfers are allowed to any host for {len(vuln_zones)} "
+                f"zone(s). This exposes the full DNS zone contents to any querier.",
+                "Zone transfer data reveals internal hostnames, IP addresses, and "
+                "network topology. Attackers use this for reconnaissance to "
+                "identify targets and map the internal network.",
+                "Restrict zone transfers to authorized secondary DNS servers only. "
+                "Configure SecureSecondaries to 'Only to servers listed on the "
+                "Name Servers tab' or specify allowed IP addresses.",
+                output=f"Zones with unrestricted transfers:\n" +
+                       "\n".join(vuln_zones[:10]),
+                remediation_effort="Easy",
+                mitre_attack=[{"technique": "T1590.002", "tactic": "Reconnaissance",
+                               "name": "Gather Victim Network Information: DNS"}],
+                nist_800_53=["SC-8", "AC-3"],
             )

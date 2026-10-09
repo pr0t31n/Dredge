@@ -21,6 +21,16 @@ class HardeningAnalyzer(BaseAnalyzer):
         self._check_null_sessions()
         self._check_audit_policy()
         self._check_print_spooler()
+        self._check_applocker()
+        self._check_hvci()
+        self._check_credssp()
+        self._check_amsi()
+        self._check_dotnet_legacy()
+        self._check_ps_clm()
+        self._check_asr_rules()
+        self._check_controlled_folder()
+        self._check_network_protection()
+        self._check_exploit_protection()
         return self.findings
 
     def _reg(self, key, default=None):
@@ -479,3 +489,185 @@ class HardeningAnalyzer(BaseAnalyzer):
                                    "name": "Exploitation of Remote Services"}],
                 )
                 break
+
+    def _defender(self, key, default=None):
+        section = self._get_section("defender_detailed", {})
+        if not isinstance(section, dict):
+            return default
+        return section.get(key, default)
+
+    def _ps_cfg(self, key, default=None):
+        section = self._get_section("powershell_config", {})
+        if not isinstance(section, dict):
+            return default
+        return section.get(key, default)
+
+    def _check_applocker(self):
+        applocker = self._reg("AppLocker")
+        wdac = self._reg("WDAC")
+        if applocker is None and wdac is None:
+            self._add_finding(
+                "DR-HDN-026", "Application Whitelisting Not Configured", "MEDIUM",
+                "Neither AppLocker nor Windows Defender Application Control (WDAC) "
+                "is configured on this system.",
+                "Without application whitelisting, any executable can run, including "
+                "malware, living-off-the-land binaries, and unauthorized software.",
+                "Configure AppLocker or WDAC policies to restrict executable, script, "
+                "and DLL execution to approved applications.",
+                remediation_effort="Significant",
+                mitre_attack=[{"technique": "T1059", "tactic": "Execution",
+                               "name": "Command and Scripting Interpreter"}],
+                nist_800_53=["CM-7"],
+            )
+
+    def _check_hvci(self):
+        hvci = self._reg("HypervisorEnforcedCodeIntegrity")
+        if hvci is not None and int(hvci) != 1:
+            self._add_finding(
+                "DR-HDN-027", "Hypervisor Code Integrity Not Enabled", "MEDIUM",
+                "Hypervisor-protected Code Integrity (HVCI) is not enabled.",
+                "Without HVCI, kernel-mode code integrity is enforced only by the "
+                "kernel itself, which can be bypassed by kernel exploits.",
+                "Enable HVCI via Group Policy or Device Guard settings. Requires "
+                "VBS-compatible hardware (UEFI, Secure Boot, TPM 2.0).",
+                remediation_effort="Moderate",
+                mitre_attack=[{"technique": "T1553", "tactic": "Defense Evasion",
+                               "name": "Subvert Trust Controls"}],
+            )
+
+    def _check_credssp(self):
+        allow_def = self._reg("AllowDefaultCredentials")
+        if allow_def is not None and int(allow_def) == 1:
+            self._add_finding(
+                "DR-HDN-028", "CredSSP Delegation Enabled", "MEDIUM",
+                "CredSSP credential delegation is enabled, allowing credentials "
+                "to be forwarded to remote servers.",
+                "CredSSP delegation exposes credentials to the remote host. If that "
+                "host is compromised, the attacker captures the delegated credentials.",
+                "Disable CredSSP delegation unless required. Use constrained "
+                "delegation or Kerberos Resource-Based Constrained Delegation instead.",
+                remediation_effort="Moderate",
+                mitre_attack=[{"technique": "T1550.001", "tactic": "Lateral Movement",
+                               "name": "Application Access Token"}],
+            )
+
+    def _check_amsi(self):
+        providers = self._ps_cfg("amsi_providers")
+        if isinstance(providers, list) and len(providers) == 0:
+            self._add_finding(
+                "DR-HDN-029", "AMSI Provider Not Registered", "MEDIUM",
+                "No Antimalware Scan Interface (AMSI) providers are registered.",
+                "Without AMSI, PowerShell scripts, VBScript, JScript, and other "
+                "AMSI-integrated components cannot be scanned for malicious content "
+                "at runtime, allowing obfuscated malware to execute undetected.",
+                "Ensure Windows Defender or a third-party AV with AMSI support is "
+                "installed and its AMSI provider is registered.",
+                remediation_effort="Easy",
+                mitre_attack=[{"technique": "T1562.001", "tactic": "Defense Evasion",
+                               "name": "Disable or Modify Tools"}],
+                nist_800_53=["SI-3"],
+            )
+
+    def _check_dotnet_legacy(self):
+        versions = self._ps_cfg("dotnet_versions", [])
+        legacy = [v for v in versions if isinstance(v, dict)
+                  and str(v.get("version", "")).startswith(("2.", "3."))]
+        if legacy:
+            ver_list = ", ".join(str(v.get("version", "")) for v in legacy[:5])
+            self._add_finding(
+                "DR-HDN-030", ".NET Framework v2/v3.5 Installed", "LOW",
+                f"Legacy .NET Framework versions are installed: {ver_list}. "
+                f"These older runtimes lack modern security mitigations.",
+                ".NET 2.0/3.5 can be abused to run PowerShell v2 and bypass "
+                "security features like AMSI and Script Block Logging.",
+                "Remove .NET Framework 2.0/3.5 if not required: "
+                "Disable-WindowsOptionalFeature -Online -FeatureName NetFx3.",
+                output=ver_list,
+                remediation_effort="Easy",
+                mitre_attack=[{"technique": "T1059.001", "tactic": "Execution",
+                               "name": "PowerShell"}],
+            )
+
+    def _check_ps_clm(self):
+        lang_mode = self._ps_cfg("language_mode", "")
+        if isinstance(lang_mode, str) and "FullLanguage" in lang_mode:
+            self._add_finding(
+                "DR-HDN-031", "PowerShell Constrained Language Mode Not Enforced", "MEDIUM",
+                "PowerShell is running in FullLanguage mode, allowing unrestricted "
+                "access to .NET types, COM objects, and all PowerShell features.",
+                "FullLanguage mode allows attackers to use PowerShell as a full-featured "
+                "attack framework with access to .NET reflection, type creation, "
+                "and arbitrary code execution capabilities.",
+                "Deploy WDAC or AppLocker policies to enforce Constrained Language "
+                "Mode for non-administrative users.",
+                remediation_effort="Significant",
+                mitre_attack=[{"technique": "T1059.001", "tactic": "Execution",
+                               "name": "PowerShell"}],
+                nist_800_53=["CM-7"],
+            )
+
+    def _check_asr_rules(self):
+        asr = self._defender("asr_rules")
+        if asr is None or (isinstance(asr, dict) and not asr.get("ids")):
+            self._add_finding(
+                "DR-HDN-032", "Attack Surface Reduction Rules Not Configured", "MEDIUM",
+                "No Attack Surface Reduction (ASR) rules are configured in "
+                "Windows Defender.",
+                "ASR rules block common attack techniques such as Office macro "
+                "execution, credential stealing from LSASS, and executable content "
+                "from email. Without them, these attack vectors remain open.",
+                "Configure ASR rules via Group Policy or Intune. Start with audit "
+                "mode, then move to block mode after verifying no business impact.",
+                remediation_effort="Moderate",
+                mitre_attack=[{"technique": "T1059", "tactic": "Execution",
+                               "name": "Command and Scripting Interpreter"}],
+                nist_800_53=["CM-7", "SI-3"],
+            )
+
+    def _check_controlled_folder(self):
+        cfa = self._defender("controlled_folder_access")
+        if isinstance(cfa, dict) and not cfa.get("enabled"):
+            self._add_finding(
+                "DR-HDN-033", "Controlled Folder Access Not Enabled", "LOW",
+                "Windows Defender Controlled Folder Access is not enabled.",
+                "Controlled Folder Access protects documents and files from "
+                "unauthorized modification by ransomware and other malicious "
+                "applications.",
+                "Enable Controlled Folder Access via Group Policy, Intune, or "
+                "PowerShell: Set-MpPreference -EnableControlledFolderAccess Enabled.",
+                remediation_effort="Easy",
+                nist_800_53=["SC-7"],
+            )
+
+    def _check_network_protection(self):
+        np = self._defender("network_protection")
+        if np is not None and int(np) != 1:
+            self._add_finding(
+                "DR-HDN-034", "Network Protection Not Enabled", "LOW",
+                "Windows Defender Network Protection is not enabled.",
+                "Network Protection blocks outbound connections to known malicious "
+                "domains and IP addresses, reducing the effectiveness of phishing "
+                "and C2 communications.",
+                "Enable Network Protection: Set-MpPreference "
+                "-EnableNetworkProtection Enabled.",
+                remediation_effort="Easy",
+                nist_800_53=["SC-7"],
+            )
+
+    def _check_exploit_protection(self):
+        ep = self._defender("exploit_protection")
+        if ep is None or (isinstance(ep, dict) and not ep):
+            self._add_finding(
+                "DR-HDN-035", "Exploit Protection Not Configured", "MEDIUM",
+                "Windows Exploit Protection (process mitigations) is not configured.",
+                "Exploit Protection provides mitigations such as DEP, ASLR, CFG, "
+                "and EAF at the per-process level. Without configuration, only "
+                "system defaults apply.",
+                "Configure Exploit Protection via Group Policy or the Windows "
+                "Security app. Apply recommended mitigations for high-risk "
+                "applications (browsers, Office, Adobe Reader).",
+                remediation_effort="Moderate",
+                mitre_attack=[{"technique": "T1068", "tactic": "Privilege Escalation",
+                               "name": "Exploitation for Privilege Escalation"}],
+                nist_800_53=["SI-16"],
+            )

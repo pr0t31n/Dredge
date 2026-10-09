@@ -13,4 +13,8 @@ __all__ = [
     "software",
     "certificates",
     "compliance",
+    "credential_exposure",
+    "privilege_escalation",
+    "persistence",
+    "adcs",
 ]
