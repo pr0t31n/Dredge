@@ -49,6 +49,8 @@ from analyzers.credential_exposure import CredentialExposureAnalyzer
 from analyzers.privilege_escalation import PrivilegeEscalationAnalyzer
 from analyzers.persistence import PersistenceAnalyzer
 from analyzers.adcs import ADCSAnalyzer
+from analyzers.disk_storage import DiskStorageAnalyzer
+from analyzers.hardware import HardwareInventoryAnalyzer
 
 from threat_intel.static_lists import ThreatIntelChecker
 from threat_intel.api_enrichment import enrich_findings
@@ -120,6 +122,8 @@ def run_analyzers(data, hostname, ip, os_info, threat_intel, skip=None):
         ("privilege_escalation", PrivilegeEscalationAnalyzer),
         ("persistence", PersistenceAnalyzer),
         ("adcs", ADCSAnalyzer),
+        ("disk_storage", DiskStorageAnalyzer),
+        ("hardware", HardwareInventoryAnalyzer),
     ]
 
     all_findings = []

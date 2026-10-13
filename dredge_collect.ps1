@@ -51,7 +51,8 @@ $AllSections = @(
     "event_logs","startup_items","bitlocker","windows_backup",
     "credential_exposure","privilege_escalation","defender_detailed","adcs",
     "persistence_mechanisms","powershell_config","laps_config","print_config",
-    "dns_config","privacy_artifacts"
+    "dns_config","privacy_artifacts",
+    "disk_storage","hardware_inventory"
 )
 $TotalSections = $AllSections.Count
 
@@ -3371,6 +3372,446 @@ function Collect-PrivacyArtifacts {
 
 
 # ═══════════════════════════════════════════════════════════════
+# Section: Disk & Storage
+# ═══════════════════════════════════════════════════════════════
+function Collect-DiskStorage {
+    $data = [ordered]@{}
+
+    # 1. Physical disks (WMI — works on all Windows versions)
+    try {
+        $phys = @()
+        Get-CimInstance Win32_DiskDrive -ErrorAction Stop | ForEach-Object {
+            $sizeGB = if ($_.Size) { [math]::Round($_.Size / 1GB, 2) } else { 0 }
+            $phys += [ordered]@{
+                device_id        = $_.DeviceID
+                model            = $_.Model
+                size_gb          = $sizeGB
+                interface_type   = $_.InterfaceType
+                media_type       = $_.MediaType
+                status           = $_.Status
+                serial_number    = $_.SerialNumber
+                partitions       = $_.Partitions
+                firmware_revision = $_.FirmwareRevision
+                scsi_bus         = $_.SCSIBus
+                scsi_target      = $_.SCSITargetId
+                scsi_lun         = $_.SCSILogicalUnit
+            }
+        }
+        $data["physical_disks"] = $phys
+    } catch {
+        $data["physical_disks"] = @()
+    }
+
+    # 2. Logical disks (WMI — works on all Windows versions)
+    try {
+        $logical = @()
+        Get-CimInstance Win32_LogicalDisk -ErrorAction Stop | ForEach-Object {
+            $sizeGB = if ($_.Size) { [math]::Round($_.Size / 1GB, 2) } else { 0 }
+            $freeGB = if ($_.FreeSpace) { [math]::Round($_.FreeSpace / 1GB, 2) } else { 0 }
+            $pctFree = if ($_.Size -and $_.Size -gt 0) { [math]::Round(($_.FreeSpace / $_.Size) * 100, 1) } else { 0 }
+            $driveTypeName = switch ($_.DriveType) {
+                0 {"Unknown"} 1 {"No Root Directory"} 2 {"Removable"} 3 {"Local Fixed"}
+                4 {"Network"} 5 {"CD-ROM"} 6 {"RAM Disk"} default {"Unknown"}
+            }
+            $logical += [ordered]@{
+                device_id   = $_.DeviceID
+                file_system = $_.FileSystem
+                size_gb     = $sizeGB
+                free_gb     = $freeGB
+                percent_free = $pctFree
+                volume_name = $_.VolumeName
+                drive_type  = $driveTypeName
+            }
+        }
+        $data["logical_disks"] = $logical
+    } catch {
+        $data["logical_disks"] = @()
+    }
+
+    # 3. Disk partitions (WMI — works on all Windows versions)
+    try {
+        $parts = @()
+        Get-CimInstance Win32_DiskPartition -ErrorAction Stop | ForEach-Object {
+            $sizeGB = if ($_.Size) { [math]::Round($_.Size / 1GB, 2) } else { 0 }
+            $parts += [ordered]@{
+                name              = $_.Name
+                size_gb           = $sizeGB
+                type              = $_.Type
+                bootable          = $_.Bootable
+                primary_partition = $_.PrimaryPartition
+                disk_index        = $_.DiskIndex
+            }
+        }
+        $data["partitions"] = $parts
+    } catch {
+        $data["partitions"] = @()
+    }
+
+    # 4. Storage module physical disks (Server 2012+ Storage module)
+    try {
+        if (Get-Command Get-PhysicalDisk -ErrorAction SilentlyContinue) {
+            $spd = @()
+            Get-PhysicalDisk -ErrorAction Stop | ForEach-Object {
+                $sizeGB = if ($_.Size) { [math]::Round($_.Size / 1GB, 2) } else { 0 }
+                $spd += [ordered]@{
+                    friendly_name      = $_.FriendlyName
+                    serial_number      = $_.SerialNumber
+                    media_type         = "$($_.MediaType)"
+                    size_gb            = $sizeGB
+                    health_status      = "$($_.HealthStatus)"
+                    operational_status = "$($_.OperationalStatus)"
+                    usage              = "$($_.Usage)"
+                    bus_type           = "$($_.BusType)"
+                    firmware_version   = $_.FirmwareVersion
+                    unique_id          = $_.UniqueId
+                    can_pool           = $_.CanPool
+                }
+            }
+            $data["storage_physical_disks"] = $spd
+        } else {
+            $data["storage_physical_disks"] = @()
+        }
+    } catch {
+        $data["storage_physical_disks"] = @()
+    }
+
+    # 5. Storage pools (Server 2012+ Storage Spaces — exclude Primordial)
+    try {
+        if (Get-Command Get-StoragePool -ErrorAction SilentlyContinue) {
+            $pools = @()
+            Get-StoragePool -ErrorAction Stop | Where-Object { -not $_.IsPrimordial } | ForEach-Object {
+                $pool = $_
+                $sizeGB = if ($pool.Size) { [math]::Round($pool.Size / 1GB, 2) } else { 0 }
+                $allocGB = if ($pool.AllocatedSize) { [math]::Round($pool.AllocatedSize / 1GB, 2) } else { 0 }
+
+                $poolDisks = @()
+                try {
+                    Get-PhysicalDisk -StoragePool $pool -ErrorAction Stop | ForEach-Object {
+                        $pdSizeGB = if ($_.Size) { [math]::Round($_.Size / 1GB, 2) } else { 0 }
+                        $poolDisks += [ordered]@{
+                            friendly_name      = $_.FriendlyName
+                            health_status      = "$($_.HealthStatus)"
+                            operational_status = "$($_.OperationalStatus)"
+                            usage              = "$($_.Usage)"
+                            media_type         = "$($_.MediaType)"
+                            size_gb            = $pdSizeGB
+                        }
+                    }
+                } catch {}
+
+                $pools += [ordered]@{
+                    friendly_name                  = $pool.FriendlyName
+                    health_status                  = "$($pool.HealthStatus)"
+                    operational_status             = "$($pool.OperationalStatus)"
+                    size_gb                        = $sizeGB
+                    allocated_size_gb              = $allocGB
+                    is_read_only                   = $pool.IsReadOnly
+                    is_power_protected             = $pool.IsPowerProtected
+                    retire_missing_physical_disks  = "$($pool.RetireMissingPhysicalDisks)"
+                    physical_disks                 = $poolDisks
+                }
+            }
+            $data["storage_pools"] = $pools
+        } else {
+            $data["storage_pools"] = @()
+        }
+    } catch {
+        $data["storage_pools"] = @()
+    }
+
+    # 6. Virtual disks (Server 2012+ Storage Spaces — RAID/parity info)
+    try {
+        if (Get-Command Get-VirtualDisk -ErrorAction SilentlyContinue) {
+            $vds = @()
+            Get-VirtualDisk -ErrorAction Stop | ForEach-Object {
+                $sizeGB = if ($_.Size) { [math]::Round($_.Size / 1GB, 2) } else { 0 }
+                $vds += [ordered]@{
+                    friendly_name              = $_.FriendlyName
+                    health_status              = "$($_.HealthStatus)"
+                    operational_status         = "$($_.OperationalStatus)"
+                    size_gb                    = $sizeGB
+                    resiliency_setting         = "$($_.ResiliencySettingName)"
+                    number_of_columns          = $_.NumberOfColumns
+                    interleave_bytes           = $_.Interleave
+                    physical_disk_redundancy   = $_.PhysicalDiskRedundancy
+                    number_of_data_copies      = $_.NumberOfDataCopies
+                    is_deduplication_enabled   = $_.IsDeduplicationEnabled
+                }
+            }
+            $data["virtual_disks"] = $vds
+        } else {
+            $data["virtual_disks"] = @()
+        }
+    } catch {
+        $data["virtual_disks"] = @()
+    }
+
+    # 7. Storage subsystems (Server 2012+)
+    try {
+        if (Get-Command Get-StorageSubSystem -ErrorAction SilentlyContinue) {
+            $subs = @()
+            Get-StorageSubSystem -ErrorAction Stop | ForEach-Object {
+                $subs += [ordered]@{
+                    friendly_name      = $_.FriendlyName
+                    model              = $_.Model
+                    manufacturer       = $_.Manufacturer
+                    health_status      = "$($_.HealthStatus)"
+                    operational_status = "$($_.OperationalStatus)"
+                }
+            }
+            $data["storage_subsystems"] = $subs
+        } else {
+            $data["storage_subsystems"] = @()
+        }
+    } catch {
+        $data["storage_subsystems"] = @()
+    }
+
+    # 8. Disks via Get-Disk (Server 2012+)
+    try {
+        if (Get-Command Get-Disk -ErrorAction SilentlyContinue) {
+            $disks = @()
+            Get-Disk -ErrorAction Stop | ForEach-Object {
+                $sizeGB = if ($_.Size) { [math]::Round($_.Size / 1GB, 2) } else { 0 }
+                $disks += [ordered]@{
+                    number             = $_.Number
+                    friendly_name      = $_.FriendlyName
+                    partition_style    = "$($_.PartitionStyle)"
+                    operational_status = "$($_.OperationalStatus)"
+                    health_status      = "$($_.HealthStatus)"
+                    size_gb            = $sizeGB
+                    is_boot            = $_.IsBoot
+                    is_system          = $_.IsSystem
+                    is_offline         = $_.IsOffline
+                }
+            }
+            $data["disks"] = $disks
+        } else {
+            $data["disks"] = @()
+        }
+    } catch {
+        $data["disks"] = @()
+    }
+
+    # 9. RAID / storage controllers (WMI — works on all Windows versions)
+    try {
+        $ctrls = @()
+        Get-CimInstance Win32_SCSIController -ErrorAction Stop | ForEach-Object {
+            $ctrls += [ordered]@{
+                name         = $_.Name
+                manufacturer = $_.Manufacturer
+                driver_name  = $_.DriverName
+                status       = $_.Status
+            }
+        }
+        $data["raid_controllers"] = $ctrls
+    } catch {
+        $data["raid_controllers"] = @()
+    }
+
+    return $data
+}
+
+
+# ═══════════════════════════════════════════════════════════════
+# Section: Hardware Inventory
+# ═══════════════════════════════════════════════════════════════
+function Collect-HardwareInventory {
+    $data = [ordered]@{}
+
+    # 1. Motherboard / Baseboard
+    try {
+        $bb = Get-CimInstance Win32_BaseBoard -ErrorAction Stop | Select-Object -First 1
+        $data["baseboard"] = [ordered]@{
+            manufacturer  = $bb.Manufacturer
+            product       = $bb.Product
+            serial_number = $bb.SerialNumber
+            version       = $bb.Version
+            status        = $bb.Status
+        }
+    } catch {
+        $data["baseboard"] = $null
+    }
+
+    # 2. Memory modules (DIMMs)
+    try {
+        $dimms = @()
+        Get-CimInstance Win32_PhysicalMemory -ErrorAction Stop | ForEach-Object {
+            $sizeGB = if ($_.Capacity) { [math]::Round($_.Capacity / 1GB, 2) } else { 0 }
+            $memType = switch ($_.SMBIOSMemoryType) {
+                20 {"DDR"} 21 {"DDR2"} 22 {"DDR2 FB-DIMM"} 24 {"DDR3"} 26 {"DDR4"} 34 {"DDR5"} default {"Type $($_.SMBIOSMemoryType)"}
+            }
+            $dimms += [ordered]@{
+                bank_label     = $_.BankLabel
+                device_locator = $_.DeviceLocator
+                capacity_gb    = $sizeGB
+                speed_mhz      = $_.Speed
+                configured_speed_mhz = $_.ConfiguredClockSpeed
+                memory_type    = $memType
+                form_factor    = "$($_.FormFactor)"
+                manufacturer   = $_.Manufacturer
+                part_number    = ($_.PartNumber -replace '\s+$','')
+                serial_number  = $_.SerialNumber
+                data_width     = $_.DataWidth
+                total_width    = $_.TotalWidth
+            }
+        }
+        $data["memory_modules"] = $dimms
+        $data["memory_total_gb"] = ($dimms | Measure-Object -Property capacity_gb -Sum).Sum
+        $data["memory_slot_count"] = $dimms.Count
+        # Check for ECC (TotalWidth > DataWidth indicates ECC)
+        $data["memory_ecc"] = ($dimms | Where-Object { $_.total_width -gt $_.data_width }).Count -gt 0
+    } catch {
+        $data["memory_modules"] = @()
+        $data["memory_total_gb"] = 0
+        $data["memory_slot_count"] = 0
+        $data["memory_ecc"] = $null
+    }
+
+    # 3. GPU / Video adapters
+    try {
+        $gpus = @()
+        Get-CimInstance Win32_VideoController -ErrorAction Stop | ForEach-Object {
+            $vramGB = if ($_.AdapterRAM -and $_.AdapterRAM -gt 0) { [math]::Round($_.AdapterRAM / 1GB, 2) } else { 0 }
+            $gpus += [ordered]@{
+                name            = $_.Name
+                adapter_ram_gb  = $vramGB
+                driver_version  = $_.DriverVersion
+                driver_date     = if ($_.DriverDate) { $_.DriverDate.ToString("o") } else { $null }
+                video_processor = $_.VideoProcessor
+                status          = $_.Status
+                pnp_device_id   = $_.PNPDeviceID
+                current_resolution = "$($_.CurrentHorizontalResolution)x$($_.CurrentVerticalResolution)"
+            }
+        }
+        $data["gpu_adapters"] = $gpus
+    } catch {
+        $data["gpu_adapters"] = @()
+    }
+
+    # 4. USB devices (connected)
+    try {
+        $usb = @()
+        Get-CimInstance Win32_USBControllerDevice -ErrorAction Stop | ForEach-Object {
+            $dep = $_.Dependent
+            if ($dep -match 'DeviceID="(.+)"') {
+                $devId = $Matches[1] -replace '\\\\','\\'
+                $devInfo = Get-CimInstance Win32_PnPEntity -Filter "DeviceID='$($devId -replace "'","''")'" -ErrorAction SilentlyContinue | Select-Object -First 1
+                if ($devInfo) {
+                    $usb += [ordered]@{
+                        name       = $devInfo.Name
+                        device_id  = $devInfo.DeviceID
+                        status     = $devInfo.Status
+                        class      = $devInfo.PNPClass
+                        manufacturer = $devInfo.Manufacturer
+                    }
+                }
+            }
+        }
+        $data["usb_devices"] = $usb
+    } catch {
+        $data["usb_devices"] = @()
+    }
+
+    # 5. PCI devices
+    try {
+        $pci = @()
+        Get-CimInstance Win32_PnPEntity -Filter "PNPClass='System' OR PNPClass='Display' OR PNPClass='Net' OR PNPClass='SCSIAdapter' OR PNPClass='HDC'" -ErrorAction Stop | ForEach-Object {
+            if ($_.DeviceID -and $_.DeviceID -match "^PCI\\") {
+                $pci += [ordered]@{
+                    name       = $_.Name
+                    device_id  = $_.DeviceID
+                    class      = $_.PNPClass
+                    status     = $_.Status
+                    manufacturer = $_.Manufacturer
+                }
+            }
+        }
+        $data["pci_devices"] = $pci
+    } catch {
+        $data["pci_devices"] = @()
+    }
+
+    # 6. Network adapters (physical only, with MAC and speed)
+    try {
+        $nics = @()
+        Get-CimInstance Win32_NetworkAdapter -Filter "PhysicalAdapter=True" -ErrorAction Stop | ForEach-Object {
+            $speedMbps = if ($_.Speed) { [math]::Round($_.Speed / 1000000, 0) } else { $null }
+            $nics += [ordered]@{
+                name            = $_.Name
+                mac_address     = $_.MACAddress
+                speed_mbps      = $speedMbps
+                adapter_type    = $_.AdapterType
+                manufacturer    = $_.Manufacturer
+                net_connection_status = "$($_.NetConnectionStatus)"
+                pnp_device_id   = $_.PNPDeviceID
+            }
+        }
+        $data["network_adapters"] = $nics
+    } catch {
+        $data["network_adapters"] = @()
+    }
+
+    # 7. Battery / UPS (relevant for laptops and rackmounts with UPS)
+    try {
+        $batteries = @()
+        Get-CimInstance Win32_Battery -ErrorAction Stop | ForEach-Object {
+            $batteries += [ordered]@{
+                name               = $_.Name
+                status             = $_.Status
+                estimated_charge   = $_.EstimatedChargeRemaining
+                battery_status     = switch ($_.BatteryStatus) { 1 {"Discharging"} 2 {"AC Power"} 3 {"Fully Charged"} 4 {"Low"} 5 {"Critical"} default {"$($_.BatteryStatus)"} }
+                chemistry          = switch ($_.Chemistry) { 1 {"Other"} 2 {"Unknown"} 3 {"Lead Acid"} 4 {"Nickel Cadmium"} 5 {"Nickel Metal Hydride"} 6 {"Lithium-ion"} 7 {"Zinc Air"} 8 {"Lithium Polymer"} default {"$($_.Chemistry)"} }
+                design_voltage     = $_.DesignVoltage
+            }
+        }
+        $data["batteries"] = $batteries
+    } catch {
+        $data["batteries"] = @()
+    }
+
+    # 8. Processor details (extended beyond system_info)
+    try {
+        $cpus = @()
+        Get-CimInstance Win32_Processor -ErrorAction Stop | ForEach-Object {
+            $cpus += [ordered]@{
+                name                  = $_.Name
+                device_id             = $_.DeviceID
+                cores                 = $_.NumberOfCores
+                logical_processors    = $_.NumberOfLogicalProcessors
+                max_clock_speed_mhz   = $_.MaxClockSpeed
+                current_clock_speed_mhz = $_.CurrentClockSpeed
+                l2_cache_kb           = $_.L2CacheSize
+                l3_cache_kb           = $_.L3CacheSize
+                architecture          = switch ($_.Architecture) { 0 {"x86"} 5 {"ARM"} 9 {"x64"} 12 {"ARM64"} default {"$($_.Architecture)"} }
+                status                = $_.Status
+                manufacturer          = $_.Manufacturer
+                socket                = $_.SocketDesignation
+                virtualization_enabled = $_.VirtualizationFirmwareEnabled
+            }
+        }
+        $data["processors"] = $cpus
+    } catch {
+        $data["processors"] = @()
+    }
+
+    # 9. Power plan
+    try {
+        if (Get-Command powercfg -ErrorAction SilentlyContinue) {
+            $active = & powercfg /getactivescheme 2>$null
+            $data["active_power_plan"] = if ($active) { ($active -replace '^.*:\s*','').Trim() } else { $null }
+        } else {
+            $data["active_power_plan"] = $null
+        }
+    } catch {
+        $data["active_power_plan"] = $null
+    }
+
+    return $data
+}
+
+
+# ═══════════════════════════════════════════════════════════════
 # Main execution
 # ═══════════════════════════════════════════════════════════════
 
@@ -3427,6 +3868,8 @@ $SectionMap = [ordered]@{
     "print_config"          = { Collect-PrintConfig }
     "dns_config"            = { Collect-DnsConfig }
     "privacy_artifacts"     = { Collect-PrivacyArtifacts }
+    "disk_storage"          = { Collect-DiskStorage }
+    "hardware_inventory"    = { Collect-HardwareInventory }
 }
 
 $idx = 0
