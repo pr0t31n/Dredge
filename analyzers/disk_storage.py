@@ -7,11 +7,13 @@ class DiskStorageAnalyzer(BaseAnalyzer):
         self._check_storage_pool_health()
         self._check_virtual_disk_health()
         self._check_redundancy_after_failure()
+        self._check_hw_raid_degraded()
         self._check_no_redundancy()
         self._check_disk_space_critical()
         self._check_disk_space_low()
         self._check_predictive_failure()
         self._check_raid_controller()
+        self._check_disk_event_log_errors()
         return self.findings
 
     def _check_physical_disk_health(self):
@@ -232,6 +234,47 @@ class DiskStorageAnalyzer(BaseAnalyzer):
                 nist_800_53=["CP-9", "CP-10", "CP-2", "CP-6"],
             )
 
+    def _check_hw_raid_degraded(self):
+        ds = self._get_section("disk_storage", {})
+        hw = ds.get("hardware_raid", {})
+        if not isinstance(hw, dict) or not hw.get("detected_cli"):
+            return
+        bad = []
+        for vd in hw.get("virtual_drives", []):
+            if not isinstance(vd, dict):
+                continue
+            state = str(vd.get("state", "")).strip().lower()
+            if state and state not in ("optimal", "ok", "online", "ready", ""):
+                bad.append(
+                    f"VD {vd.get('vd', '?')} — RAID: {vd.get('raid_level', '?')}, "
+                    f"State: {vd.get('state', '?')}, Size: {vd.get('size', '?')}, "
+                    f"CLI: {vd.get('source_cli', '?')}")
+        if bad:
+            self._add_finding(
+                "DR-DISK-010",
+                "Hardware RAID Virtual Drive Degraded",
+                "CRITICAL",
+                f"{len(bad)} hardware RAID virtual drive(s) are in a non-optimal "
+                f"state as reported by {hw.get('detected_cli', 'the controller CLI')}. "
+                "This typically means one or more member disks have failed.",
+                "A degraded hardware RAID array is operating with reduced fault "
+                "tolerance. Depending on the RAID level, one additional disk "
+                "failure may cause total data loss for the array.",
+                "Replace the failed disk(s) immediately and initiate a rebuild "
+                f"using the controller CLI ({hw.get('detected_cli', '?')}). "
+                "Do not power down the server until replacement disks are "
+                "installed. Verify backups are current.",
+                output=f"Controller: {hw.get('controller', '?')}\n"
+                       f"CLI: {hw.get('detected_cli', '?')}\n\n"
+                       + "\n".join(bad),
+                confidence="Certain",
+                remediation_effort="Major",
+                remediation_component="Infrastructure",
+                mitre_attack=[{"technique": "T1485", "tactic": "Impact",
+                               "name": "Data Destruction"}],
+                nist_800_53=["CP-9", "CP-10", "CP-2"],
+            )
+
     def _check_no_redundancy(self):
         if not self._is_server():
             return
@@ -240,7 +283,12 @@ class DiskStorageAnalyzer(BaseAnalyzer):
                  if isinstance(p, dict) and p.get("friendly_name", "").lower() != "primordial"]
         vdisks = ds.get("virtual_disks", [])
 
-        if not pools and not vdisks:
+        hw_raid = ds.get("hardware_raid", {})
+        has_hw_raid = (isinstance(hw_raid, dict)
+                       and hw_raid.get("detected_cli")
+                       and hw_raid.get("virtual_drives"))
+
+        if not pools and not vdisks and not has_hw_raid:
             phys = ds.get("physical_disks", [])
             if len(phys) > 1:
                 self._add_finding(
@@ -447,4 +495,86 @@ class DiskStorageAnalyzer(BaseAnalyzer):
                 remediation_effort="Significant",
                 remediation_component="Infrastructure",
                 nist_800_53=["CP-9", "CP-10"],
+            )
+
+    def _check_disk_event_log_errors(self):
+        ds = self._get_section("disk_storage", {})
+        events = ds.get("disk_event_errors", [])
+        if not events:
+            return
+        critical_errors = []
+        warnings = []
+        _DISK_FAIL_IDS = {7, 9, 11, 15, 51, 52, 55, 129, 137, 153, 154}
+        _NTFS_CORRUPT_IDS = {55, 98, 137}
+        for ev in events:
+            if not isinstance(ev, dict):
+                continue
+            eid = ev.get("id")
+            try:
+                eid = int(eid)
+            except (ValueError, TypeError):
+                continue
+            level = str(ev.get("level", "")).lower()
+            provider = str(ev.get("provider", "")).lower()
+            msg = str(ev.get("message", ""))[:300]
+            ts = ev.get("time", "?")
+            entry = f"[{ts}] {ev.get('provider','?')} ID:{eid} ({ev.get('level','?')}): {msg}"
+            if level in ("critical", "error"):
+                if (eid in _DISK_FAIL_IDS
+                        or eid in _NTFS_CORRUPT_IDS
+                        or "disk" in provider
+                        or "ntfs" in provider
+                        or "storagespace" in provider
+                        or "megasas" in provider
+                        or "percsas" in provider
+                        or "iastor" in provider):
+                    critical_errors.append(entry)
+                else:
+                    warnings.append(entry)
+            elif level == "warning":
+                warnings.append(entry)
+
+        if critical_errors:
+            self._add_finding(
+                "DR-DISK-011",
+                "Disk/Storage Errors in Event Logs",
+                "HIGH",
+                f"{len(critical_errors)} critical disk or storage error event(s) "
+                "found in the Windows System event log (last 30 days). These "
+                "indicate active disk I/O failures, NTFS corruption, RAID "
+                "controller errors, or storage subsystem faults.",
+                "Disk-level event log errors are the earliest indicator of "
+                "imminent drive failure, filesystem corruption, or RAID "
+                "degradation. Ignoring these leads to data loss, silent "
+                "corruption, or unplanned downtime.",
+                "Investigate each error source. For disk I/O errors (Event IDs "
+                "7, 9, 11, 15, 51, 153, 154): run SMART diagnostics and plan "
+                "disk replacement. For NTFS errors (55, 98, 137): run chkdsk. "
+                "For RAID controller errors: check the controller management "
+                "utility. Correlate with physical disk health status.",
+                output="\n\n".join(critical_errors[:20]),
+                confidence="Certain",
+                remediation_effort="Significant",
+                remediation_component="Infrastructure",
+                nist_800_53=["CP-9", "CP-10", "SI-4"],
+            )
+
+        if warnings and not critical_errors:
+            self._add_finding(
+                "DR-DISK-012",
+                "Disk/Storage Warnings in Event Logs",
+                "MEDIUM",
+                f"{len(warnings)} disk or storage warning event(s) found in the "
+                "Windows System event log (last 30 days). These may indicate "
+                "early signs of disk degradation or intermittent I/O issues.",
+                "Storage warnings often precede more serious errors. Monitoring "
+                "and acting on warnings prevents unplanned outages.",
+                "Review the warning events and correlate with disk health data. "
+                "Schedule proactive disk replacement if warnings are recurring "
+                "for the same device. Enable disk health monitoring.",
+                output="\n\n".join(warnings[:15]),
+                confidence="Firm",
+                remediation_effort="Moderate",
+                remediation_component="Infrastructure",
+                nist_800_53=["SI-4", "CP-9"],
             )

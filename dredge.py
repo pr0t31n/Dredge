@@ -53,6 +53,11 @@ from analyzers.disk_storage import DiskStorageAnalyzer
 from analyzers.hardware import HardwareInventoryAnalyzer
 
 from threat_intel.static_lists import ThreatIntelChecker
+
+try:
+    from intel_writer import write_intel_files as _write_intel
+except ImportError:
+    _write_intel = None
 from threat_intel.api_enrichment import enrich_findings
 
 
@@ -203,7 +208,7 @@ def write_findings_csv(findings, path):
             writer.writerow(row)
 
 
-def write_output(findings, summary, output_dir, client_short=None):
+def write_output(findings, summary, output_dir, client_short=None, data=None):
     out = Path(output_dir)
     out.mkdir(parents=True, exist_ok=True)
 
@@ -223,6 +228,14 @@ def write_output(findings, summary, output_dir, client_short=None):
                 client_short=client_short or "unknown",
             )
             _us.write_meta(meta, out / "meta.json")
+        except Exception:
+            pass
+
+    if _write_intel is not None:
+        try:
+            written = _write_intel(data, out)
+            for fn in written:
+                _log(f"  {fn}: written")
         except Exception:
             pass
 
@@ -404,7 +417,7 @@ def main():
         print(json.dumps(findings, indent=2))
     else:
         findings_path = write_output(
-            findings, summary, args.output_dir, client_short=args.client)
+            findings, summary, args.output_dir, client_short=args.client, data=data)
 
     if _pause is not None:
         _pause.write_stop_reason("completed", "all_phases_done")
