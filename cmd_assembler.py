@@ -1312,7 +1312,7 @@ def _parse_sections(cmd_dir):
 
 _SECTION_ASSEMBLERS = {
     "system_info": _assemble_system_info,
-    "updates": _assemble_updates,
+    "windows_update": _assemble_updates,
     "installed_software": _assemble_installed_software,
     "network_config": _assemble_network_config,
     "open_ports": _assemble_open_ports,
@@ -1393,8 +1393,11 @@ def assemble(cmd_dir):
     except Exception:
         pass
 
+    _DIR_ALIASES = {"windows_update": "updates"}
+
     for section_name, assembler_fn in _SECTION_ASSEMBLERS.items():
-        section_dir = base / section_name
+        dir_name = _DIR_ALIASES.get(section_name, section_name)
+        section_dir = base / dir_name
         if not section_dir.is_dir():
             output[section_name] = {} if section_name not in (
                 "installed_software", "processes", "services",
