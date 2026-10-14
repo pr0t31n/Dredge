@@ -32,15 +32,15 @@ param(
 )
 
 $ErrorActionPreference = "Continue"
-$DredgeVersion = "1.3.1"
+$DredgeVersion = "1.3.3"
 $StartTime = Get-Date
 $Hostname = $env:COMPUTERNAME
 $OutputFile = Join-Path $OutputPath ("dredge_collection_{0}_{1}.json" -f $Hostname, (Get-Date -Format "yyyyMMdd_HHmmss"))
 
-$SectionsCollected = [System.Collections.ArrayList]::new()
-$SectionsSkipped   = [System.Collections.ArrayList]::new()
-$SectionsFailed    = [System.Collections.ArrayList]::new()
-$SectionErrors     = [System.Collections.ArrayList]::new()
+$SectionsCollected = New-Object System.Collections.ArrayList
+$SectionsSkipped   = New-Object System.Collections.ArrayList
+$SectionsFailed    = New-Object System.Collections.ArrayList
+$SectionErrors     = New-Object System.Collections.ArrayList
 $Result = [ordered]@{}
 
 $AllSections = @(
