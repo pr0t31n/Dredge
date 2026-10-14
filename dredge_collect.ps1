@@ -32,8 +32,25 @@ param(
 )
 
 $ErrorActionPreference = "Continue"
-$DredgeVersion = "1.3.3"
+$DredgeVersion = "1.3.4"
 $StartTime = Get-Date
+
+# Language mode check — Constrained Language Mode blocks .NET types used throughout
+$langMode = $ExecutionContext.SessionState.LanguageMode
+if ($langMode -ne "FullLanguage") {
+    Write-Host ""
+    Write-Host "WARNING: PowerShell is running in '$langMode' mode." -ForegroundColor Red
+    Write-Host "Dredge requires FullLanguage mode to function." -ForegroundColor Red
+    Write-Host ""
+    Write-Host "This is typically caused by endpoint security software" -ForegroundColor Yellow
+    Write-Host "(BitDefender, MalwareBytes, CrowdStrike, etc.) restricting" -ForegroundColor Yellow
+    Write-Host "PowerShell execution. Add this script to the AV exclusion" -ForegroundColor Yellow
+    Write-Host "list, or run from an unrestricted session." -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "Current script: $($MyInvocation.MyCommand.Path)" -ForegroundColor Yellow
+    Write-Host ""
+    exit 1
+}
 $Hostname = $env:COMPUTERNAME
 $OutputFile = Join-Path $OutputPath ("dredge_collection_{0}_{1}.json" -f $Hostname, (Get-Date -Format "yyyyMMdd_HHmmss"))
 
