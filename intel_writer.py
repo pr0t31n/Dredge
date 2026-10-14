@@ -382,45 +382,82 @@ def _build_hardening_results(data):
         return None
 
     _RECOMMENDED = {
+        # UAC
         "EnableLUA": (1, "UAC enabled"),
         "ConsentPromptBehaviorAdmin": (2, "Prompt for consent on secure desktop"),
-        "LmCompatibilityLevel": (5, "Send NTLMv2 only / refuse LM & NTLM"),
         "EnableInstallerDetection": (1, "Installer detection enabled"),
         "FilterAdministratorToken": (1, "Filter admin token for built-in admin"),
         "PromptOnSecureDesktop": (1, "Prompt on secure desktop"),
         "ValidateAdminCodeSignatures": (1, "Validate admin code signatures"),
         "EnableSecureUIAPaths": (1, "Secure UIA paths enabled"),
         "EnableVirtualization": (1, "File/registry virtualization enabled"),
-        "WDigest_UseLogonCredential": (0, "WDigest cleartext disabled"),
-        "LSA_RunAsPPL": (1, "LSA runs as protected process"),
-        "NullSessionPipes": (0, "No null session pipes"),
-        "NullSessionShares": (0, "No null session shares"),
+        # Authentication
+        "LmCompatibilityLevel": (5, "Send NTLMv2 only / refuse LM & NTLM"),
+        "NoLMHash": (1, "Do not store LM hash"),
+        "UseLogonCredential": (0, "WDigest cleartext disabled"),
+        "RunAsPPL": (1, "LSA runs as protected process"),
         "RestrictAnonymous": (1, "Restrict anonymous access"),
         "RestrictAnonymousSAM": (1, "Restrict anonymous SAM enumeration"),
         "EveryoneIncludesAnonymous": (0, "Everyone does not include anonymous"),
-        "NoLMHash": (1, "Do not store LM hash"),
-        "EnableFirewall_Domain": (1, "Domain firewall enabled"),
-        "EnableFirewall_Private": (1, "Private firewall enabled"),
-        "EnableFirewall_Public": (1, "Public firewall enabled"),
-        "AllowICMPRedirect": (0, "ICMP redirects disabled"),
-        "DisableIPSourceRouting": (2, "IP source routing fully disabled"),
-        "TcpMaxDataRetransmissions": (3, "Limit TCP retransmissions"),
-        "EnableDeadGWDetect": (0, "Dead GW detect disabled"),
-        "KeepAliveTime": (300000, "Keepalive time 5 min"),
+        "LimitBlankPasswordUse": (1, "Blank password logon restricted"),
+        "ForceGuest": (0, "Classic sharing model (not Guest-only)"),
+        "DisableDomainCreds": (0, "Allow caching of domain credentials"),
+        "SCENoApplyLegacyAuditPolicy": (1, "Force advanced audit policy subcategories"),
+        # SMB Server
+        "SMB1": (0, "SMBv1 disabled"),
+        "RequireSecuritySignature": (1, "SMB server signing required"),
+        "NullSessionPipes": (0, "No null session pipes"),
+        "NullSessionShares": (0, "No null session shares"),
+        "RestrictNullSessAccess": (1, "Restrict null session access"),
+        "AutoDisconnect": (15, "Auto-disconnect idle sessions (15 min)"),
+        "EnableSecuritySignature": (1, "SMB server signing enabled"),
+        # SMB Client
+        "SMBClient_RequireSecuritySignature": (1, "SMB client signing required"),
+        "SMBClient_EnableSecuritySignature": (1, "SMB client signing enabled"),
+        "ConsentPromptBehaviorUser": (3, "Standard user elevation prompt: deny"),
+        # RDP
+        "fDenyTSConnections": (0, "RDP access controlled (0=allowed if needed)"),
+        "UserAuthentication": (1, "NLA required for RDP"),
+        "MinEncryptionLevel": (3, "RDP encryption set to High"),
+        "SecurityLayer": (2, "RDP uses TLS security layer"),
+        # Device Guard / Credential Guard
+        "EnableVirtualizationBasedSecurity": (1, "Virtualization-Based Security enabled"),
+        "HypervisorEnforcedCodeIntegrity": (1, "HVCI enabled"),
+        "LsaCfgFlags": (1, "Credential Guard enabled"),
+        # PowerShell
+        "ScriptBlockLogging": (1, "PowerShell script block logging enabled"),
+        "ModuleLogging": (1, "PowerShell module logging enabled"),
+        "Transcription": (1, "PowerShell transcription enabled"),
+        # Network
+        "EnableMulticast": (0, "LLMNR disabled"),
+        "NoDriveTypeAutoRun": (255, "AutoRun disabled on all drives"),
+        # Defender
+        "defender_disabled": (0, "Windows Defender enabled"),
+        "real_time_protection": (0, "Real-time protection enabled"),
+        # SMB Client (new — from assembler additions)
+        "SMBClient_EnablePlainTextPassword": (0, "SMB client plain-text password disabled"),
+        # SMB Server additional
+        "SMBServer_EnableSecuritySignature": (1, "SMB server signing enabled (if client agrees)"),
     }
+
+    _SKIP_KEYS = {"audit_policy", "audit_policy_raw", "defender_exclusions",
+                   "nx_policy", "WpadOverride"}
 
     items = []
     if isinstance(rh, dict):
         for setting, current_val in rh.items():
+            if setting in _SKIP_KEYS or isinstance(current_val, (list, dict)):
+                continue
             rec = _RECOMMENDED.get(setting)
             if rec:
                 rec_val, rec_desc = rec
+                compliant = current_val == rec_val if current_val is not None else False
                 items.append({
                     "setting": setting,
                     "current_value": current_val,
                     "recommended_value": rec_val,
                     "recommendation": rec_desc,
-                    "compliant": current_val == rec_val if current_val is not None else False,
+                    "compliant": compliant,
                 })
             else:
                 items.append({
@@ -725,6 +762,598 @@ def _build_browser_audit(data):
     return browsers
 
 
+_CIS_AUDIT_POLICY_REQUIREMENTS = {
+    "System": {
+        "Security System Extension": "Success",
+        "System Integrity": "Success and Failure",
+        "Security State Change": "Success",
+    },
+    "Logon/Logoff": {
+        "Logon": "Success and Failure",
+        "Logoff": "Success",
+        "Account Lockout": "Failure",
+        "Special Logon": "Success",
+        "Other Logon/Logoff Events": "Success and Failure",
+    },
+    "Object Access": {
+        "Removable Storage": "Success and Failure",
+    },
+    "Privilege Use": {
+        "Sensitive Privilege Use": "Success and Failure",
+    },
+    "Detailed Tracking": {
+        "Process Creation": "Success",
+    },
+    "Policy Change": {
+        "Audit Policy Change": "Success and Failure",
+        "Authentication Policy Change": "Success",
+        "Authorization Policy Change": "Success",
+    },
+    "Account Management": {
+        "User Account Management": "Success and Failure",
+        "Security Group Management": "Success",
+        "Computer Account Management": "Success",
+        "Other Account Management Events": "Success and Failure",
+    },
+    "DS Access": {
+        "Directory Service Access": "Success and Failure",
+        "Directory Service Changes": "Success and Failure",
+    },
+    "Account Logon": {
+        "Credential Validation": "Success and Failure",
+        "Kerberos Authentication Service": "Success and Failure",
+        "Kerberos Service Ticket Operations": "Success and Failure",
+    },
+}
+
+
+def _audit_setting_meets(actual, required):
+    if not actual or actual == "No Auditing":
+        return False
+    if required == actual:
+        return True
+    if required in ("Success", "Failure") and actual == "Success and Failure":
+        return True
+    return False
+
+
+def _build_cis_compliance(data):
+    rh = data.get("registry_hardening", {})
+    sp = data.get("security_policy", {})
+    fw = data.get("firewall", {})
+    si = data.get("system_info", {})
+    if not isinstance(rh, dict):
+        rh = {}
+    if not isinstance(sp, dict):
+        sp = {}
+
+    controls = []
+
+    def _add(cis_id, section, title, status, current, expected, severity="L1"):
+        controls.append({
+            "id": cis_id, "section": section, "title": title,
+            "status": status, "current": str(current) if current is not None else "Not configured",
+            "expected": str(expected), "severity": severity,
+        })
+
+    # 1. Account Policies
+    pp = sp.get("password_policy", {})
+    if isinstance(pp, dict):
+        ml = pp.get("minimum_password_length", "")
+        ml_int = int(ml) if str(ml).isdigit() else 0
+        _add("1.1.4", "Account Policies", "Minimum password length >= 14",
+             "Pass" if ml_int >= 14 else "Fail", ml, "14+")
+        ma = pp.get("maximum_password_age", "")
+        ma_int = int(ma) if str(ma).isdigit() else 999
+        _add("1.1.2", "Account Policies", "Maximum password age <= 365 days",
+             "Pass" if 0 < ma_int <= 365 else "Fail", ma, "1-365")
+        mia = pp.get("minimum_password_age", "")
+        mia_int = int(mia) if str(mia).isdigit() else 0
+        _add("1.1.3", "Account Policies", "Minimum password age >= 1 day",
+             "Pass" if mia_int >= 1 else "Fail", mia, "1+")
+        ph = pp.get("password_history_count", "")
+        ph_int = int(ph) if str(ph).isdigit() else 0
+        _add("1.1.1", "Account Policies", "Password history >= 24",
+             "Pass" if ph_int >= 24 else "Fail", ph, "24+")
+
+    lp = sp.get("lockout_policy", {})
+    if isinstance(lp, dict):
+        lt = lp.get("lockout_threshold", "")
+        lt_int = int(lt) if str(lt).isdigit() else 0
+        _add("1.2.1", "Account Policies", "Account lockout threshold <= 5",
+             "Pass" if 0 < lt_int <= 5 else "Fail", lt, "1-5")
+        ld = lp.get("lockout_duration", "")
+        ld_int = int(ld) if str(ld).isdigit() else 0
+        _add("1.2.2", "Account Policies", "Account lockout duration >= 15 min",
+             "Pass" if ld_int >= 15 else "Fail", ld, "15+")
+
+    # 2. Local Policies — Security Options
+    _CIS_REGISTRY = [
+        ("2.3.1.1", "Security Options", "Accounts: Block Microsoft accounts", "NoConnectedUser", 3, "L1"),
+        ("2.3.1.2", "Security Options", "Accounts: Guest account status", None, None, "L1"),
+        ("2.3.1.5", "Security Options", "Accounts: Limit local use of blank passwords", "LimitBlankPasswordUse", 1, "L1"),
+        ("2.3.2.1", "Security Options", "Audit: Force audit subcategory settings", "SCENoApplyLegacyAuditPolicy", 1, "L1"),
+        ("2.3.7.1", "Security Options", "Interactive logon: Do not display last user", None, None, "L1"),
+        ("2.3.8.1", "Security Options", "MS Network Client: Digitally sign (always)", "SMBClient_RequireSecuritySignature", 1, "L1"),
+        ("2.3.8.2", "Security Options", "MS Network Client: Digitally sign (if server agrees)", "SMBClient_EnableSecuritySignature", 1, "L1"),
+        ("2.3.9.1", "Security Options", "MS Network Server: Idle time before disconnect", "AutoDisconnect", 15, "L1"),
+        ("2.3.9.2", "Security Options", "MS Network Server: Digitally sign (always)", "RequireSecuritySignature", 1, "L1"),
+        ("2.3.9.3", "Security Options", "MS Network Server: Digitally sign (if client agrees)", "EnableSecuritySignature", 1, "L1"),
+        ("2.3.10.2", "Security Options", "Network access: No anonymous SAM enumeration", "RestrictAnonymousSAM", 1, "L1"),
+        ("2.3.10.4", "Security Options", "Network access: Restrict anonymous access", "RestrictAnonymous", 1, "L1"),
+        ("2.3.10.7", "Security Options", "Network access: Restrict null session pipes", "NullSessionPipes", 0, "L1"),
+        ("2.3.10.10", "Security Options", "Network access: Restrict null session access", "RestrictNullSessAccess", 1, "L1"),
+        ("2.3.11.4", "Security Options", "Network security: LAN Manager auth level", "LmCompatibilityLevel", 5, "L1"),
+        ("2.3.11.7", "Security Options", "Network security: Do not store LM hash", "NoLMHash", 1, "L1"),
+        ("2.3.17.1", "Security Options", "UAC: Admin Approval Mode for built-in admin", "FilterAdministratorToken", 1, "L1"),
+        ("2.3.17.2", "Security Options", "UAC: Behavior of elevation prompt (admin)", "ConsentPromptBehaviorAdmin", 2, "L1"),
+        ("2.3.17.4", "Security Options", "UAC: Detect application installations", "EnableInstallerDetection", 1, "L1"),
+        ("2.3.17.5", "Security Options", "UAC: Only elevate signed executables", "ValidateAdminCodeSignatures", 0, "L1"),
+        ("2.3.17.6", "Security Options", "UAC: Only elevate UIAccess for secure locations", "EnableSecureUIAPaths", 1, "L1"),
+        ("2.3.17.7", "Security Options", "UAC: Run admins in Admin Approval Mode", "EnableLUA", 1, "L1"),
+        ("2.3.17.8", "Security Options", "UAC: Switch to secure desktop for elevation", "PromptOnSecureDesktop", 1, "L1"),
+    ]
+    for cis_id, section, title, key, expected, severity in _CIS_REGISTRY:
+        if key is None:
+            continue
+        current = rh.get(key)
+        status = "Pass" if current == expected else ("Fail" if current is not None else "Not Configured")
+        _add(cis_id, section, title, status, current, expected, severity)
+
+    # 9. Windows Firewall
+    if isinstance(fw, dict):
+        profiles = fw.get("profiles", {})
+        for pname, pdata in (profiles.items() if isinstance(profiles, dict) else []):
+            pval = pdata.get("State", pdata.get("enabled", "")) if isinstance(pdata, dict) else ""
+            is_on = str(pval).lower() in ("on", "true", "1", "enabled")
+            _add(f"9.1.{pname[:3].lower()}", "Windows Firewall",
+                 f"Firewall {pname} profile enabled", "Pass" if is_on else "Fail",
+                 pval, "ON")
+
+    # 17. Advanced Audit Policy
+    audit = rh.get("audit_policy", {})
+    if isinstance(audit, dict):
+        for cat, subs in _CIS_AUDIT_POLICY_REQUIREMENTS.items():
+            cat_data = audit.get(cat, {})
+            if not isinstance(cat_data, dict):
+                continue
+            for sub, required in subs.items():
+                actual = cat_data.get(sub, "No Auditing")
+                status = "Pass" if _audit_setting_meets(actual, required) else "Fail"
+                _add(f"17.{cat[:4]}", "Advanced Audit Policy",
+                     f"{cat} > {sub} includes '{required}'",
+                     status, actual, required)
+
+    # 18.x Registry / MSS
+    _add("18.3.6", "MSS Settings", "SMBv1 protocol disabled",
+         "Pass" if rh.get("SMB1") == 0 else "Fail", rh.get("SMB1"), 0)
+    _add("18.4.4", "MSS Settings", "WDigest Authentication disabled",
+         "Pass" if rh.get("UseLogonCredential") == 0 else "Fail",
+         rh.get("UseLogonCredential"), 0)
+    _add("18.8.3", "Admin Templates", "LSASS as Protected Process",
+         "Pass" if rh.get("RunAsPPL") == 1 else "Fail", rh.get("RunAsPPL"), 1)
+    _add("18.9.100", "Admin Templates", "PowerShell Script Block Logging",
+         "Pass" if rh.get("ScriptBlockLogging") == 1 else "Fail",
+         rh.get("ScriptBlockLogging"), 1)
+    _add("18.9.100", "Admin Templates", "PowerShell Module Logging",
+         "Pass" if rh.get("ModuleLogging") == 1 else "Fail",
+         rh.get("ModuleLogging"), 1)
+    _add("18.6.1", "Admin Templates", "LLMNR disabled (NetBIOS poisoning)",
+         "Pass" if rh.get("EnableMulticast") == 0 else "Fail",
+         rh.get("EnableMulticast"), 0)
+    _add("18.9.25", "Admin Templates", "NLA required for RDP",
+         "Pass" if rh.get("UserAuthentication") == 1 else "Fail",
+         rh.get("UserAuthentication"), 1)
+
+    pass_count = sum(1 for c in controls if c["status"] == "Pass")
+    fail_count = sum(1 for c in controls if c["status"] == "Fail")
+    nc_count = sum(1 for c in controls if c["status"] == "Not Configured")
+    total = len(controls)
+    score = round(pass_count / total * 100, 1) if total else 0
+
+    return {
+        "framework": "CIS",
+        "framework_full": "CIS Microsoft Windows Server Benchmark",
+        "version": "v2.3.0+",
+        "controls": controls,
+        "summary": {
+            "total": total, "pass": pass_count,
+            "fail": fail_count, "not_configured": nc_count,
+            "score_percent": score,
+        },
+        "rating": ("Good" if score >= 80 else "Fair" if score >= 60
+                   else "Poor" if score >= 40 else "Critical"),
+    }
+
+
+def _build_nist_800_123_compliance(data):
+    rh = data.get("registry_hardening", {})
+    sp = data.get("security_policy", {})
+    si = data.get("system_info", {})
+    fw = data.get("firewall", {})
+    svcs = data.get("services", [])
+    updates = data.get("updates", {})
+    ua = data.get("user_accounts", {})
+    dd = data.get("defender_detailed", {})
+    if not isinstance(rh, dict):
+        rh = {}
+    if not isinstance(si, dict):
+        si = {}
+
+    controls = []
+
+    def _add(nist_id, category, title, status, detail, recommendation):
+        controls.append({
+            "id": nist_id, "category": category, "title": title,
+            "status": status, "detail": str(detail) if detail is not None else "",
+            "recommendation": recommendation,
+        })
+
+    # 4.1 OS Patching and Updates
+    if isinstance(updates, dict):
+        total = updates.get("total_updates_installed", 0)
+        pending = updates.get("pending_count", 0)
+        svc_status = updates.get("update_service_status", "")
+        _add("4.1.1", "OS Patching", "Windows Update service status",
+             "Pass" if svc_status.lower() == "running" else "Fail",
+             svc_status, "Ensure Windows Update service is running")
+        _add("4.1.2", "OS Patching", "Pending updates installed",
+             "Pass" if pending == 0 else "Fail",
+             f"{pending} pending, {total} installed",
+             "Apply all pending security updates")
+
+    os_name = si.get("os_name", "")
+    is_eol = "2012" in os_name or "2008" in os_name or "2003" in os_name
+    _add("4.1.3", "OS Patching", "Operating system supported / not EOL",
+         "Fail" if is_eol else "Pass", os_name,
+         "Upgrade to a supported Windows Server version")
+
+    # 4.2 Remove Unnecessary Services
+    risky_running = []
+    _UNNECESSARY = {"telnet", "tlntsvr", "snmp", "ftpsvc", "msftpsvc",
+                    "iisadmin", "ssdpsrv", "upnphost", "simptcp",
+                    "remoteregistry", "browser", "fax", "tapisrv"}
+    if isinstance(svcs, list):
+        for svc in svcs:
+            if not isinstance(svc, dict):
+                continue
+            state = (svc.get("status", "") or svc.get("state", "")).upper()
+            name = (svc.get("name", "") or "").lower()
+            if state in ("RUNNING", "RUN") and name in _UNNECESSARY:
+                risky_running.append(svc.get("display_name", name))
+    _add("4.2.1", "Remove Unnecessary Services", "No risky services running",
+         "Pass" if not risky_running else "Fail",
+         ", ".join(risky_running[:5]) or "None found",
+         "Disable unnecessary services (Telnet, FTP, SNMP, etc.)")
+
+    # 4.3 Authentication and Access Control
+    _add("4.3.1", "Authentication", "NTLMv2 enforced (LmCompatibilityLevel=5)",
+         "Pass" if rh.get("LmCompatibilityLevel") == 5 else "Fail",
+         rh.get("LmCompatibilityLevel"), "Set LmCompatibilityLevel to 5")
+    _add("4.3.2", "Authentication", "LM hash storage disabled",
+         "Pass" if rh.get("NoLMHash") == 1 else "Fail",
+         rh.get("NoLMHash"), "Set NoLMHash to 1")
+    _add("4.3.3", "Authentication", "WDigest cleartext credentials disabled",
+         "Pass" if rh.get("UseLogonCredential") == 0 else "Fail",
+         rh.get("UseLogonCredential"),
+         "Set UseLogonCredential to 0")
+    pp = sp.get("password_policy", {}) if isinstance(sp, dict) else {}
+    ml = int(pp.get("minimum_password_length", "0") or "0") if isinstance(pp, dict) else 0
+    _add("4.3.4", "Authentication", "Minimum password length >= 14",
+         "Pass" if ml >= 14 else "Fail", ml,
+         "Set minimum password length to 14 or more")
+
+    lp = sp.get("lockout_policy", {}) if isinstance(sp, dict) else {}
+    lt = int(lp.get("lockout_threshold", "0") or "0") if isinstance(lp, dict) else 0
+    _add("4.3.5", "Authentication", "Account lockout enabled",
+         "Pass" if 0 < lt <= 10 else "Fail", lt,
+         "Set lockout threshold between 3-5 failed attempts")
+
+    local_users = ua.get("local_users", []) if isinstance(ua, dict) else []
+    pw_never = sum(1 for u in local_users
+                   if isinstance(u, dict) and u.get("enabled") and u.get("password_never_expires"))
+    _add("4.3.6", "Authentication", "No enabled accounts with password never expires",
+         "Pass" if pw_never == 0 else "Fail",
+         f"{pw_never} accounts",
+         "Set password expiration on all enabled accounts")
+
+    admins = ua.get("administrators_group", []) if isinstance(ua, dict) else []
+    _add("4.3.7", "Authentication", "Local Administrators group minimized",
+         "Pass" if len(admins) <= 3 else "Fail",
+         f"{len(admins)} members: {', '.join(str(a) for a in admins[:5])}",
+         "Limit local admin group to essential accounts only")
+
+    # 4.4 Resource Controls
+    _add("4.4.1", "Resource Controls", "SMBv1 disabled",
+         "Pass" if rh.get("SMB1") == 0 else "Fail",
+         rh.get("SMB1"), "Disable SMBv1 protocol")
+    _add("4.4.2", "Resource Controls", "SMB signing required (server)",
+         "Pass" if rh.get("RequireSecuritySignature") == 1 else "Fail",
+         rh.get("RequireSecuritySignature"), "Enable RequireSecuritySignature")
+    _add("4.4.3", "Resource Controls", "Anonymous access restricted",
+         "Pass" if rh.get("RestrictAnonymous") == 1 else "Fail",
+         rh.get("RestrictAnonymous"), "Set RestrictAnonymous to 1")
+    _add("4.4.4", "Resource Controls", "Null session pipes restricted",
+         "Pass" if rh.get("NullSessionPipes") in (0, "", None, "0") else "Fail",
+         rh.get("NullSessionPipes"), "Remove all null session pipes")
+
+    # 4.5 Logging and Monitoring
+    _add("4.5.1", "Logging", "PowerShell Script Block Logging enabled",
+         "Pass" if rh.get("ScriptBlockLogging") == 1 else "Fail",
+         rh.get("ScriptBlockLogging"), "Enable ScriptBlockLogging")
+    _add("4.5.2", "Logging", "PowerShell Module Logging enabled",
+         "Pass" if rh.get("ModuleLogging") == 1 else "Fail",
+         rh.get("ModuleLogging"), "Enable ModuleLogging")
+
+    # 4.6 Host-based Firewall
+    profiles = fw.get("profiles", {}) if isinstance(fw, dict) else {}
+    all_on = True
+    for pname, pdata in (profiles.items() if isinstance(profiles, dict) else []):
+        pval = pdata.get("State", pdata.get("enabled", "")) if isinstance(pdata, dict) else ""
+        if str(pval).lower() not in ("on", "true", "1", "enabled"):
+            all_on = False
+    _add("4.6.1", "Host Firewall", "All firewall profiles enabled",
+         "Pass" if all_on and profiles else "Fail",
+         ", ".join(f"{k}={v.get('State', v.get('enabled', '?'))}"
+                   for k, v in profiles.items()
+                   if isinstance(v, dict)) if profiles else "No profiles",
+         "Enable Domain, Private, and Public firewall profiles")
+
+    # 4.7 Anti-malware
+    av = dd.get("av_products", []) if isinstance(dd, dict) else []
+    has_av = bool(av and any(isinstance(a, dict) and a.get("name") for a in av))
+    _add("4.7.1", "Anti-malware", "Antivirus product installed",
+         "Pass" if has_av else "Fail",
+         ", ".join(a.get("name", "?") for a in av[:3] if isinstance(a, dict)) or "None detected",
+         "Install and maintain endpoint antivirus")
+    rt = rh.get("real_time_protection")
+    _add("4.7.2", "Anti-malware", "Real-time protection enabled",
+         "Pass" if rt == 0 else ("Fail" if rt == 1 else "Unknown"),
+         rt, "Enable real-time antivirus scanning")
+
+    pass_count = sum(1 for c in controls if c["status"] == "Pass")
+    fail_count = sum(1 for c in controls if c["status"] == "Fail")
+    total = len(controls)
+    score = round(pass_count / total * 100, 1) if total else 0
+
+    return {
+        "framework": "NIST",
+        "framework_full": "NIST SP 800-123 Guide to General Server Security",
+        "version": "July 2008",
+        "controls": controls,
+        "summary": {
+            "total": total, "pass": pass_count,
+            "fail": fail_count,
+            "score_percent": score,
+        },
+        "rating": ("Good" if score >= 80 else "Fair" if score >= 60
+                   else "Poor" if score >= 40 else "Critical"),
+    }
+
+
+def _build_disa_stig_compliance(data):
+    rh = data.get("registry_hardening", {})
+    sp = data.get("security_policy", {})
+    si = data.get("system_info", {})
+    ua = data.get("user_accounts", {})
+    fw = data.get("firewall", {})
+    svcs = data.get("services", [])
+    updates = data.get("updates", {})
+    dd = data.get("defender_detailed", {})
+    if not isinstance(rh, dict):
+        rh = {}
+    if not isinstance(si, dict):
+        si = {}
+
+    controls = []
+
+    def _add(vuln_id, cat, sev, title, status, detail, fix_text):
+        controls.append({
+            "id": vuln_id, "category": cat, "severity": sev,
+            "title": title, "status": status,
+            "detail": str(detail) if detail is not None else "",
+            "fix_text": fix_text,
+        })
+
+    # --- CAT I (High) ---
+    os_name = si.get("os_name", "")
+    is_eol = "2012" in os_name or "2008" in os_name or "2003" in os_name
+    _add("V-225417", "OS Support", "CAT I",
+         "System must be running a supported OS version",
+         "Fail" if is_eol else "Pass", os_name,
+         "Upgrade to a DISA-approved Windows Server version")
+
+    _add("V-225418", "Authentication", "CAT I",
+         "Do not store LAN Manager hash values",
+         "Pass" if rh.get("NoLMHash") == 1 else "Fail", rh.get("NoLMHash"),
+         "Set NoLMHash to 1 in HKLM\\SYSTEM\\CurrentControlSet\\Control\\Lsa")
+
+    _add("V-225419", "Authentication", "CAT I",
+         "LAN Manager auth level set to NTLMv2 only",
+         "Pass" if (rh.get("LmCompatibilityLevel") or 0) >= 5 else "Fail",
+         rh.get("LmCompatibilityLevel"),
+         "Set LmCompatibilityLevel to 5")
+
+    _add("V-225420", "Access Control", "CAT I",
+         "UAC must be enabled (Admin Approval Mode)",
+         "Pass" if rh.get("EnableLUA") == 1 else "Fail", rh.get("EnableLUA"),
+         "Set EnableLUA to 1")
+
+    _add("V-225421", "Protocol", "CAT I",
+         "SMBv1 protocol must be disabled",
+         "Pass" if rh.get("SMB1") == 0 else "Fail", rh.get("SMB1"),
+         "Disable SMBv1 server and client")
+
+    _add("V-225422", "Credential Protection", "CAT I",
+         "WDigest cleartext storage must be disabled",
+         "Pass" if rh.get("UseLogonCredential") == 0 else "Fail",
+         rh.get("UseLogonCredential"),
+         "Set UseLogonCredential to 0")
+
+    # --- CAT II (Medium) ---
+    pp = sp.get("password_policy", {}) if isinstance(sp, dict) else {}
+    ml = int(pp.get("minimum_password_length", "0") or "0") if isinstance(pp, dict) else 0
+    _add("V-225430", "Account Policy", "CAT II",
+         "Minimum password length must be 14+ characters",
+         "Pass" if ml >= 14 else "Fail", ml,
+         "Set minimum password length to 14 via Group Policy")
+
+    ph = int(pp.get("password_history_count", "0") or "0") if isinstance(pp, dict) else 0
+    _add("V-225431", "Account Policy", "CAT II",
+         "Password history must enforce 24+ passwords",
+         "Pass" if ph >= 24 else "Fail", ph,
+         "Set Enforce password history to 24")
+
+    lp = sp.get("lockout_policy", {}) if isinstance(sp, dict) else {}
+    lt = int(lp.get("lockout_threshold", "0") or "0") if isinstance(lp, dict) else 0
+    _add("V-225432", "Account Policy", "CAT II",
+         "Account lockout threshold must be 3 or fewer",
+         "Pass" if 0 < lt <= 3 else "Fail", lt,
+         "Set account lockout threshold to 3 or fewer attempts")
+
+    ld = int(lp.get("lockout_duration", "0") or "0") if isinstance(lp, dict) else 0
+    _add("V-225433", "Account Policy", "CAT II",
+         "Lockout duration must be >= 15 minutes",
+         "Pass" if ld >= 15 else "Fail", ld,
+         "Set lockout duration to 15 minutes or greater")
+
+    _add("V-225440", "SMB", "CAT II",
+         "SMB server signing must be required",
+         "Pass" if rh.get("RequireSecuritySignature") == 1 else "Fail",
+         rh.get("RequireSecuritySignature"),
+         "Set RequireSecuritySignature to 1 on LanmanServer\\Parameters")
+
+    _add("V-225441", "SMB", "CAT II",
+         "SMB client signing must be required",
+         "Pass" if rh.get("SMBClient_RequireSecuritySignature") == 1 else "Fail",
+         rh.get("SMBClient_RequireSecuritySignature"),
+         "Set RequireSecuritySignature to 1 on LanmanWorkstation\\Parameters")
+
+    _add("V-225442", "Access Control", "CAT II",
+         "Anonymous SAM enumeration must be restricted",
+         "Pass" if rh.get("RestrictAnonymousSAM") == 1 else "Fail",
+         rh.get("RestrictAnonymousSAM"),
+         "Set RestrictAnonymousSAM to 1")
+
+    _add("V-225443", "Access Control", "CAT II",
+         "Anonymous access to named pipes must be restricted",
+         "Pass" if rh.get("NullSessionPipes") in (0, "", None, "0") else "Fail",
+         rh.get("NullSessionPipes"),
+         "Remove entries from NullSessionPipes")
+
+    _add("V-225444", "Access Control", "CAT II",
+         "Anonymous enumeration of shares must be restricted",
+         "Pass" if rh.get("RestrictAnonymous") == 1 else "Fail",
+         rh.get("RestrictAnonymous"),
+         "Set RestrictAnonymous to 1")
+
+    _add("V-225445", "RDP", "CAT II",
+         "Network Level Authentication required for RDP",
+         "Pass" if rh.get("UserAuthentication") == 1 else "Fail",
+         rh.get("UserAuthentication"),
+         "Enable Network Level Authentication for Remote Desktop")
+
+    _add("V-225446", "Credential Protection", "CAT II",
+         "LSA protection (RunAsPPL) must be enabled",
+         "Pass" if rh.get("RunAsPPL") == 1 else "Fail",
+         rh.get("RunAsPPL"),
+         "Set RunAsPPL to 1 for LSA protection")
+
+    _add("V-225450", "Logging", "CAT II",
+         "PowerShell Script Block Logging must be enabled",
+         "Pass" if rh.get("ScriptBlockLogging") == 1 else "Fail",
+         rh.get("ScriptBlockLogging"),
+         "Enable Script Block Logging in Group Policy")
+
+    _add("V-225451", "Network", "CAT II",
+         "LLMNR must be disabled",
+         "Pass" if rh.get("EnableMulticast") == 0 else "Fail",
+         rh.get("EnableMulticast"),
+         "Set EnableMulticast to 0")
+
+    _add("V-225452", "AutoPlay", "CAT II",
+         "AutoRun must be disabled for all drives",
+         "Pass" if rh.get("NoDriveTypeAutoRun") == 255 else "Fail",
+         rh.get("NoDriveTypeAutoRun"),
+         "Set NoDriveTypeAutoRun to 0xFF (255)")
+
+    # Firewall
+    profiles = fw.get("profiles", {}) if isinstance(fw, dict) else {}
+    all_on = all(
+        str((pd.get("State", pd.get("enabled", "")) if isinstance(pd, dict) else "")).lower()
+        in ("on", "true", "1", "enabled")
+        for pd in profiles.values() if isinstance(pd, dict)
+    ) if profiles else False
+    _add("V-225460", "Firewall", "CAT II",
+         "Windows Firewall must be enabled for all profiles",
+         "Pass" if all_on and profiles else "Fail",
+         ", ".join(f"{k}" for k in profiles) or "None",
+         "Enable Domain, Private, and Public firewall profiles")
+
+    # Admin accounts
+    admins = ua.get("administrators_group", []) if isinstance(ua, dict) else []
+    local_users = ua.get("local_users", []) if isinstance(ua, dict) else []
+    pw_never = sum(1 for u in local_users
+                   if isinstance(u, dict) and u.get("enabled") and u.get("password_never_expires"))
+    _add("V-225470", "Account Management", "CAT II",
+         "Enabled accounts must have password expiration",
+         "Pass" if pw_never == 0 else "Fail",
+         f"{pw_never} accounts with password never expires",
+         "Set password expiration for all enabled accounts")
+
+    # AV
+    av = dd.get("av_products", []) if isinstance(dd, dict) else []
+    has_av = bool(av and any(isinstance(a, dict) and a.get("name") for a in av))
+    _add("V-225480", "Anti-Virus", "CAT II",
+         "Antivirus software must be installed and active",
+         "Pass" if has_av else "Fail",
+         ", ".join(a.get("name", "?") for a in av[:3] if isinstance(a, dict)) or "None detected",
+         "Install DoD-approved antivirus software")
+
+    # Audit policy checks
+    audit = rh.get("audit_policy", {})
+    if isinstance(audit, dict):
+        _STIG_AUDIT = [
+            ("V-225490", "Logon/Logoff", "Logon", "Success and Failure"),
+            ("V-225491", "Account Management", "User Account Management", "Success and Failure"),
+            ("V-225492", "Account Management", "Security Group Management", "Success"),
+            ("V-225493", "Policy Change", "Audit Policy Change", "Success and Failure"),
+            ("V-225494", "Detailed Tracking", "Process Creation", "Success"),
+            ("V-225495", "Account Logon", "Credential Validation", "Success and Failure"),
+            ("V-225496", "DS Access", "Directory Service Access", "Success and Failure"),
+        ]
+        for vuln_id, cat, sub, required in _STIG_AUDIT:
+            cat_data = audit.get(cat, {})
+            actual = cat_data.get(sub, "No Auditing") if isinstance(cat_data, dict) else "No Auditing"
+            _add(vuln_id, "Audit Policy", "CAT II",
+                 f"Audit '{cat} > {sub}' must include '{required}'",
+                 "Pass" if _audit_setting_meets(actual, required) else "Fail",
+                 actual,
+                 f"Configure {sub} auditing to {required}")
+
+    cat1_fail = sum(1 for c in controls if c["severity"] == "CAT I" and c["status"] == "Fail")
+    cat2_fail = sum(1 for c in controls if c["severity"] == "CAT II" and c["status"] == "Fail")
+    pass_count = sum(1 for c in controls if c["status"] == "Pass")
+    fail_count = sum(1 for c in controls if c["status"] == "Fail")
+    total = len(controls)
+    score = round(pass_count / total * 100, 1) if total else 0
+
+    return {
+        "framework": "DISA_STIG",
+        "framework_full": "DISA STIG Windows Server 2012/2012 R2",
+        "version": "v3r7",
+        "controls": controls,
+        "summary": {
+            "total": total, "pass": pass_count,
+            "fail": fail_count, "cat1_fail": cat1_fail, "cat2_fail": cat2_fail,
+            "score_percent": score,
+        },
+        "rating": ("Good" if score >= 80 and cat1_fail == 0
+                   else "Fair" if score >= 60 and cat1_fail <= 1
+                   else "Poor" if score >= 40 else "Critical"),
+    }
+
+
 def write_intel_files(data, output_dir):
     out = Path(output_dir)
 
@@ -745,6 +1374,9 @@ def write_intel_files(data, output_dir):
         ("ad_assessment.json", _build_ad_assessment),
         ("network_posture.json", _build_network_posture),
         ("browser_audit.json", _build_browser_audit),
+        ("cis_compliance.json", _build_cis_compliance),
+        ("nist_800_123_compliance.json", _build_nist_800_123_compliance),
+        ("disa_stig_compliance.json", _build_disa_stig_compliance),
     ]
 
     written = []

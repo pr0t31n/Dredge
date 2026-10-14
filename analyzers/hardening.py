@@ -31,6 +31,15 @@ class HardeningAnalyzer(BaseAnalyzer):
         self._check_controlled_folder()
         self._check_network_protection()
         self._check_exploit_protection()
+        self._check_smb_client_signing()
+        self._check_anon_sam()
+        self._check_builtin_admin_uac_bypass()
+        self._check_blank_passwords()
+        self._check_everyone_includes_anonymous()
+        self._check_rdp_encryption()
+        self._check_audit_subcategories()
+        self._check_dangerous_user_rights()
+        self._check_legacy_audit_override()
         return self.findings
 
     def _reg(self, key, default=None):
@@ -670,4 +679,264 @@ class HardeningAnalyzer(BaseAnalyzer):
                 mitre_attack=[{"technique": "T1068", "tactic": "Privilege Escalation",
                                "name": "Exploitation for Privilege Escalation"}],
                 nist_800_53=["SI-16"],
+            )
+
+    def _check_smb_client_signing(self):
+        val = self._reg("SMBClient_RequireSecuritySignature")
+        if val is not None and int(val) != 1:
+            self._add_finding(
+                "DR-HDN-036",
+                "Network Hardening: SMB Client Signing Not Required", "MEDIUM",
+                "Outbound SMB connections from this host do not require packet "
+                "signing. An attacker on the local network can intercept and "
+                "relay SMB authentication to other targets.",
+                "Without client-side signing, NTLM relay attacks are possible. "
+                "An attacker poisons name resolution (LLMNR/NBT-NS), intercepts "
+                "this machine's outbound SMB authentication, and relays it to "
+                "another host to execute commands or access shares.",
+                "Set RequireSecuritySignature to 1 under "
+                "HKLM\\SYSTEM\\CurrentControlSet\\Services\\LanmanWorkstation\\Parameters.",
+                output=f"SMBClient_RequireSecuritySignature: {val}",
+                remediation_effort="Easy",
+                mitre_attack=[{"technique": "T1557.001", "tactic": "Credential Access",
+                               "name": "LLMNR/NBT-NS Poisoning and SMB Relay"}],
+                nist_800_53=["SC-8", "SC-23"],
+            )
+
+    def _check_anon_sam(self):
+        val = self._reg("RestrictAnonymousSAM")
+        if val is not None and int(val) != 1:
+            self._add_finding(
+                "DR-HDN-037",
+                "Access Control: Anonymous SAM Account Enumeration Allowed",
+                "MEDIUM",
+                "Unauthenticated users can enumerate local user accounts through "
+                "the SAM database (RestrictAnonymousSAM is not enabled).",
+                "An attacker can retrieve the full list of local user accounts "
+                "without any credentials. This provides a target list for "
+                "password spraying and brute force attacks.",
+                "Set RestrictAnonymousSAM to 1 in "
+                "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Lsa.",
+                output=f"RestrictAnonymousSAM: {val}",
+                remediation_effort="Easy",
+                mitre_attack=[{"technique": "T1087.001", "tactic": "Discovery",
+                               "name": "Local Account Discovery"}],
+                nist_800_53=["AC-3", "AC-14"],
+            )
+
+    def _check_builtin_admin_uac_bypass(self):
+        fat = self._reg("FilterAdministratorToken")
+        lua = self._reg("EnableLUA")
+        if lua is not None and int(lua) == 1 and (fat is None or int(fat) == 0):
+            self._add_finding(
+                "DR-HDN-038",
+                "System Hardening: Built-in Administrator Exempt from UAC",
+                "MEDIUM",
+                "The built-in Administrator account (RID 500) runs all processes "
+                "with full elevated privileges without UAC prompts. "
+                "FilterAdministratorToken is not enabled.",
+                "Any process launched by the RID-500 Administrator account "
+                "runs with unrestricted administrative privileges. If an "
+                "attacker obtains this account's credentials, post-exploitation "
+                "is immediate with no elevation prompt barrier.",
+                "Set FilterAdministratorToken to 1 under "
+                "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System.",
+                output=f"FilterAdministratorToken: {fat}",
+                remediation_effort="Easy",
+                nist_800_53=["AC-6", "CM-6"],
+            )
+
+    def _check_blank_passwords(self):
+        val = self._reg("LimitBlankPasswordUse")
+        if val is not None and int(val) == 0:
+            self._add_finding(
+                "DR-HDN-039",
+                "Authentication: Blank Passwords Permitted for Network Logon",
+                "HIGH",
+                "Accounts with empty passwords can authenticate over the network "
+                "(SMB, RDP, WinRM). LimitBlankPasswordUse is disabled.",
+                "An attacker who discovers any account with no password can "
+                "authenticate remotely. On domain controllers this grants access "
+                "to SYSVOL, NETLOGON, and potentially administrative shares.",
+                "Set LimitBlankPasswordUse to 1 in "
+                "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Lsa.",
+                output=f"LimitBlankPasswordUse: {val}",
+                remediation_effort="Easy",
+                cwe=["CWE-521"],
+                mitre_attack=[{"technique": "T1078.001", "tactic": "Initial Access",
+                               "name": "Default Accounts"}],
+                nist_800_53=["IA-5", "AC-7"],
+            )
+
+    def _check_everyone_includes_anonymous(self):
+        val = self._reg("EveryoneIncludesAnonymous")
+        if val is not None and int(val) == 1:
+            self._add_finding(
+                "DR-HDN-040",
+                "Access Control: Anonymous Users Included in Everyone Group",
+                "HIGH",
+                "The Everyone security group includes anonymous (unauthenticated) "
+                "connections. Any resource with Everyone permissions is accessible "
+                "without credentials.",
+                "Shares, files, and objects granted to Everyone become accessible "
+                "to null-session connections. This effectively removes the "
+                "authentication boundary for any Everyone-permissioned resource.",
+                "Set EveryoneIncludesAnonymous to 0 in "
+                "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Lsa.",
+                output=f"EveryoneIncludesAnonymous: {val}",
+                remediation_effort="Easy",
+                mitre_attack=[{"technique": "T1087", "tactic": "Discovery",
+                               "name": "Account Discovery"}],
+                nist_800_53=["AC-3", "AC-14"],
+            )
+
+    def _check_rdp_encryption(self):
+        rdp_enabled = self._reg("fDenyTSConnections")
+        if rdp_enabled is None or int(rdp_enabled) != 0:
+            return
+        enc = self._reg("MinEncryptionLevel")
+        sec_layer = self._reg("SecurityLayer")
+        issues = []
+        if enc is not None and int(enc) < 3:
+            issues.append(f"MinEncryptionLevel={enc} (should be 3=High)")
+        if sec_layer is not None and int(sec_layer) == 0:
+            issues.append(f"SecurityLayer=0 (RDP Security Layer — no TLS)")
+        if issues:
+            self._add_finding(
+                "DR-HDN-041",
+                "Remote Desktop: Weak RDP Transport Encryption", "HIGH",
+                "Remote Desktop is configured with weak or legacy transport "
+                "encryption. Sessions can be intercepted or downgraded.",
+                "SecurityLayer=0 uses legacy RDP encryption (RC4-based, no server "
+                "certificate validation). Low MinEncryptionLevel allows 56-bit or "
+                "40-bit session keys. An on-path attacker can intercept keystrokes, "
+                "screen content, and credentials.",
+                "Set SecurityLayer to 2 (TLS) and MinEncryptionLevel to 3 (High) "
+                "under HKLM\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server\\"
+                "WinStations\\RDP-Tcp.",
+                output="\n".join(issues),
+                remediation_effort="Easy",
+                cwe=["CWE-326"],
+                mitre_attack=[{"technique": "T1021.001", "tactic": "Lateral Movement",
+                               "name": "Remote Desktop Protocol"}],
+                nist_800_53=["SC-8", "SC-23"],
+            )
+
+    def _check_audit_subcategories(self):
+        audit = self._get_section("registry_hardening", {}).get("audit_policy", {})
+        if not isinstance(audit, dict):
+            return
+        critical_subs = {
+            ("Logon/Logoff", "Logon"): "Success and Failure",
+            ("Account Management", "User Account Management"): "Success and Failure",
+            ("Account Logon", "Credential Validation"): "Success and Failure",
+            ("Detailed Tracking", "Process Creation"): "Success",
+            ("DS Access", "Directory Service Access"): "Success and Failure",
+            ("Policy Change", "Audit Policy Change"): "Success and Failure",
+            ("Privilege Use", "Sensitive Privilege Use"): "Success and Failure",
+        }
+        gaps = []
+        for (cat, sub), required in critical_subs.items():
+            cat_data = audit.get(cat, {})
+            if not isinstance(cat_data, dict):
+                continue
+            actual = cat_data.get(sub, "No Auditing")
+            if actual == "No Auditing" or actual == "":
+                gaps.append(f"{cat} > {sub}: {actual} (need {required})")
+        if len(gaps) >= 3:
+            self._add_finding(
+                "DR-HDN-042",
+                "Monitoring: Critical Audit Subcategories Disabled", "MEDIUM",
+                f"{len(gaps)} security-critical audit subcategories are not "
+                f"configured. Events in these categories are not being logged.",
+                "Without subcategory auditing for logon events, credential "
+                "validation, account management, and process creation, the "
+                "system cannot detect brute force attacks, pass-the-hash, "
+                "unauthorized account changes, or malicious process execution.",
+                "Enable Advanced Audit Policy via Group Policy for at minimum: "
+                "Logon, User Account Management, Credential Validation, Process "
+                "Creation, and Audit Policy Change.",
+                output="\n".join(gaps),
+                remediation_effort="Easy",
+                nist_800_53=["AU-2", "AU-3", "AU-12"],
+            )
+
+    def _check_dangerous_user_rights(self):
+        sp = self._get_section("security_policy", {})
+        if not isinstance(sp, dict):
+            return
+        ura = sp.get("user_rights_assignment", {})
+        if not isinstance(ura, dict):
+            return
+        _SAFE_SIDS = {
+            "*s-1-5-18", "*s-1-5-19", "*s-1-5-20",
+            "*s-1-5-32-544",
+        }
+        dangerous = []
+        _HIGH_RISK_RIGHTS = {
+            "SeDebugPrivilege": "Debug programs — can dump LSASS",
+            "SeTakeOwnershipPrivilege": "Take ownership of objects",
+            "SeLoadDriverPrivilege": "Load kernel drivers",
+            "SeBackupPrivilege": "Bypass ACLs to read any file",
+            "SeRestorePrivilege": "Bypass ACLs to write any file",
+            "SeTcbPrivilege": "Act as part of the operating system",
+            "SeAssignPrimaryTokenPrivilege": "Replace a process-level token",
+            "SeImpersonatePrivilege": "Impersonate a client after authentication",
+        }
+        for right, desc in _HIGH_RISK_RIGHTS.items():
+            assigned = ura.get(right, "")
+            if not assigned:
+                continue
+            principals = [p.strip() for p in assigned.split(",") if p.strip()]
+            non_standard = [p for p in principals if p.lower() not in _SAFE_SIDS]
+            if non_standard:
+                dangerous.append(f"{right}: {', '.join(non_standard)} — {desc}")
+        if dangerous:
+            self._add_finding(
+                "DR-HDN-043",
+                "Privilege Escalation: Sensitive User Rights Assigned to Non-Default Accounts",
+                "HIGH",
+                f"{len(dangerous)} sensitive user right(s) are assigned to "
+                f"accounts beyond the operating system defaults. These rights "
+                f"enable credential theft, kernel-level access, or file system "
+                f"bypass.",
+                "SeDebugPrivilege allows dumping LSASS memory to extract all "
+                "cached credentials. SeLoadDriverPrivilege allows loading a "
+                "malicious kernel driver. SeBackupPrivilege allows reading any "
+                "file on the system regardless of ACLs, including SAM and "
+                "SYSTEM registry hives.",
+                "Review User Rights Assignment in Group Policy (Computer "
+                "Configuration > Security Settings > Local Policies > User "
+                "Rights Assignment). Remove non-essential accounts from "
+                "sensitive privileges. Only SYSTEM, LOCAL SERVICE, and "
+                "Administrators should hold these rights.",
+                output="\n".join(dangerous[:10]),
+                remediation_effort="Moderate",
+                cwe=["CWE-269", "CWE-250"],
+                mitre_attack=[{"technique": "T1134", "tactic": "Privilege Escalation",
+                               "name": "Access Token Manipulation"}],
+                nist_800_53=["AC-6", "CM-6"],
+            )
+
+    def _check_legacy_audit_override(self):
+        val = self._reg("SCENoApplyLegacyAuditPolicy")
+        if val is not None and int(val) != 1:
+            self._add_finding(
+                "DR-HDN-044",
+                "Monitoring: Advanced Audit Policy Overridden by Legacy Settings",
+                "MEDIUM",
+                "Advanced Audit Policy subcategory settings are being silently "
+                "overridden by legacy basic audit policy. Granular audit "
+                "configurations may not be taking effect.",
+                "Without SCENoApplyLegacyAuditPolicy enabled, basic audit "
+                "policy (Success/Failure per category) takes precedence over "
+                "Advanced Audit Policy subcategory settings. Administrators "
+                "who configure granular auditing may not realize their "
+                "settings are being ignored.",
+                "Set SCENoApplyLegacyAuditPolicy to 1 under "
+                "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Lsa and use only "
+                "Advanced Audit Policy Configuration in Group Policy.",
+                output=f"SCENoApplyLegacyAuditPolicy: {val}",
+                remediation_effort="Easy",
+                nist_800_53=["AU-2", "AU-12"],
             )

@@ -2,12 +2,12 @@
 setlocal enabledelayedexpansion
 REM ═══════════════════════════════════════════════════════════════
 REM  Dredge CMD Collector — Pure CMD backup for PS-blocked systems
-REM  Version: 1.7.0
+REM  Version: 1.8.0
 REM  Works on: Windows Server 2012+ / Windows 7+ (cmd.exe only)
 REM  Usage: dredge_collect_cmd.bat [OutputPath]
 REM ═══════════════════════════════════════════════════════════════
 
-set "DREDGE_VERSION=1.7.0"
+set "DREDGE_VERSION=1.8.0"
 set "HOSTNAME=%COMPUTERNAME%"
 
 REM --- Build timestamp ---
@@ -45,7 +45,7 @@ set "META_FILE=%OUT_DIR%\meta.txt"
 set "COLLECTOR_LOG=%OUT_DIR%\collector.log"
 set "SECT_COUNT=0"
 set "SECT_FAIL=0"
-set "TOTAL_SECTIONS=38"
+set "TOTAL_SECTIONS=39"
 
 echo.
 echo ===================================================================
@@ -820,6 +820,71 @@ wmic path Win32_SCSIController list full /format:csv > "%OUT_DIR%\hardware_inven
 wmic path Win32_USBController list full /format:csv > "%OUT_DIR%\hardware_inventory\usb.csv" 2>&1
 wmic path Win32_SoundDevice list full /format:csv > "%OUT_DIR%\hardware_inventory\sound.csv" 2>&1
 call :section_end "hardware_inventory"
+
+REM ═══════════════════════════════════════════════════════════════
+REM  Section 39: Compliance Data (CIS/NIST/STIG)
+REM ═══════════════════════════════════════════════════════════════
+call :section_start "compliance_data" 39
+mkdir "%OUT_DIR%\compliance_data" 2>nul
+
+REM === Screen Saver Settings (CIS 18.9.11) ===
+reg query "HKCU\Control Panel\Desktop" /v ScreenSaveActive > "%OUT_DIR%\compliance_data\screensaver.txt" 2>nul
+reg query "HKCU\Control Panel\Desktop" /v ScreenSaverIsSecure >> "%OUT_DIR%\compliance_data\screensaver.txt" 2>nul
+reg query "HKCU\Control Panel\Desktop" /v ScreenSaveTimeOut >> "%OUT_DIR%\compliance_data\screensaver.txt" 2>nul
+reg query "HKLM\SOFTWARE\Policies\Microsoft\Windows\Control Panel\Desktop" /v ScreenSaveActive >> "%OUT_DIR%\compliance_data\screensaver.txt" 2>nul
+reg query "HKLM\SOFTWARE\Policies\Microsoft\Windows\Control Panel\Desktop" /v ScreenSaverIsSecure >> "%OUT_DIR%\compliance_data\screensaver.txt" 2>nul
+
+REM === Interactive Logon Settings (CIS 2.3.7) ===
+reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v LegalNoticeCaption > "%OUT_DIR%\compliance_data\logon_banner.txt" 2>nul
+reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v LegalNoticeText >> "%OUT_DIR%\compliance_data\logon_banner.txt" 2>nul
+reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v InactivityTimeoutSecs >> "%OUT_DIR%\compliance_data\logon_banner.txt" 2>nul
+reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v DontDisplayLastUserName >> "%OUT_DIR%\compliance_data\logon_banner.txt" 2>nul
+reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v ScForceOption >> "%OUT_DIR%\compliance_data\logon_banner.txt" 2>nul
+
+REM === MSS Settings (CIS 18.4) ===
+reg query "HKLM\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" /v DisableIPSourceRouting > "%OUT_DIR%\compliance_data\mss_settings.txt" 2>nul
+reg query "HKLM\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" /v EnableICMPRedirect >> "%OUT_DIR%\compliance_data\mss_settings.txt" 2>nul
+reg query "HKLM\SYSTEM\CurrentControlSet\Services\Tcpip6\Parameters" /v DisableIPSourceRouting >> "%OUT_DIR%\compliance_data\mss_settings.txt" 2>nul
+reg query "HKLM\SYSTEM\CurrentControlSet\Services\Netbt\Parameters" /v NodeType >> "%OUT_DIR%\compliance_data\mss_settings.txt" 2>nul
+reg query "HKLM\SYSTEM\CurrentControlSet\Services\Netbt\Parameters" /v NoNameReleaseOnDemand >> "%OUT_DIR%\compliance_data\mss_settings.txt" 2>nul
+reg query "HKLM\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" /v PerformRouterDiscovery >> "%OUT_DIR%\compliance_data\mss_settings.txt" 2>nul
+reg query "HKLM\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" /v KeepAliveTime >> "%OUT_DIR%\compliance_data\mss_settings.txt" 2>nul
+reg query "HKLM\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" /v EnableDeadGWDetect >> "%OUT_DIR%\compliance_data\mss_settings.txt" 2>nul
+reg query "HKLM\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" /v TcpMaxDataRetransmissions >> "%OUT_DIR%\compliance_data\mss_settings.txt" 2>nul
+
+REM === Network Security (CIS 2.3.11) ===
+reg query "HKLM\SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0" /v NTLMMinClientSec > "%OUT_DIR%\compliance_data\network_security.txt" 2>nul
+reg query "HKLM\SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0" /v NTLMMinServerSec >> "%OUT_DIR%\compliance_data\network_security.txt" 2>nul
+reg query "HKLM\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters" /v RequireSignOrSeal >> "%OUT_DIR%\compliance_data\network_security.txt" 2>nul
+reg query "HKLM\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters" /v SealSecureChannel >> "%OUT_DIR%\compliance_data\network_security.txt" 2>nul
+reg query "HKLM\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters" /v SignSecureChannel >> "%OUT_DIR%\compliance_data\network_security.txt" 2>nul
+reg query "HKLM\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters" /v RequireStrongKey >> "%OUT_DIR%\compliance_data\network_security.txt" 2>nul
+
+REM === Remote Assistance (CIS 18.8.36) ===
+reg query "HKLM\SYSTEM\CurrentControlSet\Control\Remote Assistance" /v fAllowToGetHelp > "%OUT_DIR%\compliance_data\remote_assistance.txt" 2>nul
+reg query "HKLM\SYSTEM\CurrentControlSet\Control\Remote Assistance" /v fAllowFullControl >> "%OUT_DIR%\compliance_data\remote_assistance.txt" 2>nul
+
+REM === Shutdown Settings (CIS 2.3.13) ===
+reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v ShutdownWithoutLogon > "%OUT_DIR%\compliance_data\shutdown.txt" 2>nul
+reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v ClearPageFileAtShutdown >> "%OUT_DIR%\compliance_data\shutdown.txt" 2>nul
+
+REM === Print Spooler (CIS 18.4.8) ===
+reg query "HKLM\SOFTWARE\Policies\Microsoft\Windows NT\Printers" /v DisableWebPnPDownload > "%OUT_DIR%\compliance_data\print_spooler.txt" 2>nul
+reg query "HKLM\SOFTWARE\Policies\Microsoft\Windows NT\Printers" /v DisableHTTPPrinting >> "%OUT_DIR%\compliance_data\print_spooler.txt" 2>nul
+
+REM === AutoPlay Detailed (CIS 18.9.8) ===
+reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer" /v NoDriveTypeAutoRun > "%OUT_DIR%\compliance_data\autoplay.txt" 2>nul
+reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer" /v NoAutorun >> "%OUT_DIR%\compliance_data\autoplay.txt" 2>nul
+reg query "HKLM\SOFTWARE\Policies\Microsoft\Windows\Explorer" /v NoAutoplayfornonVolume >> "%OUT_DIR%\compliance_data\autoplay.txt" 2>nul
+
+REM === WinRM Security (CIS 18.9.102) ===
+reg query "HKLM\SOFTWARE\Policies\Microsoft\Windows\WinRM\Client" /s > "%OUT_DIR%\compliance_data\winrm_client.txt" 2>nul
+reg query "HKLM\SOFTWARE\Policies\Microsoft\Windows\WinRM\Service" /s > "%OUT_DIR%\compliance_data\winrm_service.txt" 2>nul
+
+REM === AppLocker / SRP (STIG) ===
+reg query "HKLM\SOFTWARE\Policies\Microsoft\Windows\SrpV2" /s > "%OUT_DIR%\compliance_data\applocker_srp.txt" 2>nul
+
+call :section_end "compliance_data"
 
 REM ═══════════════════════════════════════════════════════════════
 REM  Summary

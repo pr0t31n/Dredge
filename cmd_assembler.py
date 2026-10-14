@@ -127,6 +127,48 @@ def _reg_dword_int(text, value_name, default=None):
         return default
 
 
+def _parse_auditpol(text):
+    result = {}
+    category = None
+    for line in text.splitlines():
+        line = line.rstrip("\r")
+        if not line.strip():
+            continue
+        if line.startswith("System audit policy") or line.startswith("Category/Subcategory"):
+            continue
+        if not line.startswith(" ") and not line.startswith("\t"):
+            category = line.strip()
+            if category and category not in result:
+                result[category] = {}
+        elif category:
+            stripped = line.strip()
+            for setting in ("Success and Failure", "Success", "Failure", "No Auditing"):
+                if stripped.endswith(setting):
+                    subcat = stripped[: -len(setting)].strip()
+                    if subcat:
+                        result[category][subcat] = setting
+                    break
+    return result
+
+
+def _parse_secedit_inf(text):
+    sections = {}
+    current_section = None
+    for line in text.splitlines():
+        line = line.rstrip("\r").strip()
+        if not line or line.startswith(";"):
+            continue
+        if line.startswith("[") and line.endswith("]"):
+            current_section = line[1:-1]
+            if current_section not in sections:
+                sections[current_section] = {}
+            continue
+        if current_section and "=" in line:
+            key, _, val = line.partition("=")
+            sections[current_section][key.strip()] = val.strip()
+    return sections
+
+
 def _parse_sc_query(text):
     services = []
     current = {}
@@ -640,6 +682,12 @@ def _assemble_security_policy(d):
     lockout["lockout_duration"] = na.get("Lockout duration (minutes)", "")
     lockout["lockout_observation_window"] = na.get("Lockout observation window (minutes)", "")
     result["lockout_policy"] = lockout
+    secedit = _read(d / "secedit_export.inf") if (d / "secedit_export.inf").exists() else ""
+    if secedit:
+        sections = _parse_secedit_inf(secedit)
+        result["user_rights_assignment"] = sections.get("Privilege Rights", {})
+        result["system_access"] = sections.get("System Access", {})
+        result["event_audit"] = sections.get("Event Audit", {})
     return result
 
 
@@ -686,9 +734,41 @@ def _assemble_registry_hardening(d):
     defender_config = _parse_reg_query(_read(d / "defender_config.txt"))
     result["real_time_protection"] = _to_int(defender_config.get("DisableRealtimeMonitoring"))
     result["defender_exclusions"] = []
-    auditpol = _read(d / "auditpol.txt") if (d / "auditpol.txt").exists() else ""
+    # Additional UAC settings (CIS 2.3.17)
+    result["EnableInstallerDetection"] = _to_int(uac.get("EnableInstallerDetection"))
+    result["FilterAdministratorToken"] = _to_int(uac.get("FilterAdministratorToken"))
+    result["PromptOnSecureDesktop"] = _to_int(uac.get("PromptOnSecureDesktop"))
+    result["ValidateAdminCodeSignatures"] = _to_int(uac.get("ValidateAdminCodeSignatures"))
+    result["EnableSecureUIAPaths"] = _to_int(uac.get("EnableSecureUIAPaths"))
+    result["EnableVirtualization"] = _to_int(uac.get("EnableVirtualization"))
+    result["ConsentPromptBehaviorUser"] = _to_int(uac.get("ConsentPromptBehaviorUser"))
+    # Additional LSA settings (CIS 2.3.10, STIG)
+    result["RestrictAnonymousSAM"] = _to_int(lsa.get("RestrictAnonymousSAM"))
+    result["EveryoneIncludesAnonymous"] = _to_int(lsa.get("EveryoneIncludesAnonymous"))
+    result["ForceGuest"] = _to_int(lsa.get("ForceGuest"))
+    result["DisableDomainCreds"] = _to_int(lsa.get("DisableDomainCreds"))
+    result["LimitBlankPasswordUse"] = _to_int(lsa.get("LimitBlankPasswordUse"))
+    result["SCENoApplyLegacyAuditPolicy"] = _to_int(lsa.get("SCENoApplyLegacyAuditPolicy"))
+    # SMB Server additional (CIS 2.3.8)
+    result["AutoDisconnect"] = _to_int(smb_server.get("AutoDisconnect"))
+    result["SMBServer_EnableSecuritySignature"] = _to_int(smb_server.get("EnableSecuritySignature"))
+    result["NullSessionShares"] = smb_server.get("NullSessionShares", "")
+    result["RestrictNullSessAccess"] = _to_int(smb_server.get("RestrictNullSessAccess"))
+    # SMB Client (CIS 2.3.8)
+    smb_client = _parse_reg_query(_read(d / "smb_client.txt"))
+    result["SMBClient_RequireSecuritySignature"] = _to_int(smb_client.get("RequireSecuritySignature"))
+    result["SMBClient_EnableSecuritySignature"] = _to_int(smb_client.get("EnableSecuritySignature"))
+    result["SMBClient_EnablePlainTextPassword"] = _to_int(smb_client.get("EnablePlainTextPassword"))
+    # RDP additional (CIS 18.9.65, STIG)
+    result["MinEncryptionLevel"] = _to_int(rdp_tcp.get("MinEncryptionLevel"))
+    result["SecurityLayer"] = _to_int(rdp_tcp.get("SecurityLayer"))
+    # Audit policy (structured) — lives in security_policy/, not registry_hardening/
+    sp_dir = d.parent / "security_policy"
+    auditpol_path = sp_dir / "auditpol.txt" if sp_dir.is_dir() else d / "auditpol.txt"
+    auditpol = _read(auditpol_path) if auditpol_path.exists() else ""
     if auditpol:
-        result["audit_policy"] = auditpol
+        result["audit_policy_raw"] = auditpol
+        result["audit_policy"] = _parse_auditpol(auditpol)
     return result
 
 
@@ -1378,6 +1458,146 @@ def _assemble_disk_storage(d):
     return result
 
 
+def _parse_compliance_data(d):
+    """Parse compliance_data section files into a structured dict.
+
+    Each file contains concatenated reg query output for a compliance category.
+    REG_DWORD values are converted to int; REG_SZ / REG_EXPAND_SZ stay as str.
+    """
+    result = {}
+
+    def _typed_val(raw_val, reg_type):
+        """Convert a raw registry value string to int (DWORD) or str."""
+        if reg_type == "REG_DWORD":
+            raw_val = raw_val.strip()
+            try:
+                if raw_val.startswith("0x"):
+                    return int(raw_val, 16)
+                return int(raw_val)
+            except (ValueError, TypeError):
+                return raw_val
+        return raw_val
+
+    def _extract_values(text):
+        """Parse reg query output into {ValueName: typed_value}."""
+        vals = {}
+        for line in text.splitlines():
+            line = line.rstrip("\r")
+            m = re.match(r"^\s+(\S+)\s+(REG_\w+)\s+(.*)", line)
+            if m:
+                name = m.group(1)
+                rtype = m.group(2)
+                rval = m.group(3).strip()
+                vals[name] = _typed_val(rval, rtype)
+        return vals
+
+    def _extract_values_recursive(text):
+        """Parse recursive reg query output (/s) into a flat dict of all values."""
+        vals = {}
+        for line in text.splitlines():
+            line = line.rstrip("\r")
+            m = re.match(r"^\s+(\S+)\s+(REG_\w+)\s+(.*)", line)
+            if m:
+                name = m.group(1)
+                rtype = m.group(2)
+                rval = m.group(3).strip()
+                vals[name] = _typed_val(rval, rtype)
+        return vals
+
+    # --- Screensaver (CIS 18.9.11) ---
+    ss_text = _read(d / "screensaver.txt")
+    ss = _extract_values(ss_text)
+    result["screensaver"] = {
+        "ScreenSaveActive": ss.get("ScreenSaveActive"),
+        "ScreenSaverIsSecure": ss.get("ScreenSaverIsSecure"),
+        "ScreenSaveTimeOut": ss.get("ScreenSaveTimeOut"),
+    }
+
+    # --- Interactive Logon / Banner (CIS 2.3.7) ---
+    lb_text = _read(d / "logon_banner.txt")
+    lb = _extract_values(lb_text)
+    result["logon_banner"] = {
+        "LegalNoticeCaption": lb.get("LegalNoticeCaption"),
+        "LegalNoticeText": lb.get("LegalNoticeText"),
+        "InactivityTimeoutSecs": lb.get("InactivityTimeoutSecs"),
+        "DontDisplayLastUserName": lb.get("DontDisplayLastUserName"),
+        "ScForceOption": lb.get("ScForceOption"),
+    }
+
+    # --- MSS Settings (CIS 18.4) ---
+    mss_text = _read(d / "mss_settings.txt")
+    mss = _extract_values(mss_text)
+    result["mss_settings"] = {
+        "DisableIPSourceRouting": mss.get("DisableIPSourceRouting"),
+        "EnableICMPRedirect": mss.get("EnableICMPRedirect"),
+        "NodeType": mss.get("NodeType"),
+        "NoNameReleaseOnDemand": mss.get("NoNameReleaseOnDemand"),
+        "PerformRouterDiscovery": mss.get("PerformRouterDiscovery"),
+        "KeepAliveTime": mss.get("KeepAliveTime"),
+        "EnableDeadGWDetect": mss.get("EnableDeadGWDetect"),
+        "TcpMaxDataRetransmissions": mss.get("TcpMaxDataRetransmissions"),
+    }
+
+    # --- Network Security (CIS 2.3.11) ---
+    ns_text = _read(d / "network_security.txt")
+    ns = _extract_values(ns_text)
+    result["network_security"] = {
+        "NTLMMinClientSec": ns.get("NTLMMinClientSec"),
+        "NTLMMinServerSec": ns.get("NTLMMinServerSec"),
+        "RequireSignOrSeal": ns.get("RequireSignOrSeal"),
+        "SealSecureChannel": ns.get("SealSecureChannel"),
+        "SignSecureChannel": ns.get("SignSecureChannel"),
+        "RequireStrongKey": ns.get("RequireStrongKey"),
+    }
+
+    # --- Remote Assistance (CIS 18.8.36) ---
+    ra_text = _read(d / "remote_assistance.txt")
+    ra = _extract_values(ra_text)
+    result["remote_assistance"] = {
+        "fAllowToGetHelp": ra.get("fAllowToGetHelp"),
+        "fAllowFullControl": ra.get("fAllowFullControl"),
+    }
+
+    # --- Shutdown Settings (CIS 2.3.13) ---
+    sd_text = _read(d / "shutdown.txt")
+    sd = _extract_values(sd_text)
+    result["shutdown"] = {
+        "ShutdownWithoutLogon": sd.get("ShutdownWithoutLogon"),
+        "ClearPageFileAtShutdown": sd.get("ClearPageFileAtShutdown"),
+    }
+
+    # --- Print Spooler (CIS 18.4.8) ---
+    ps_text = _read(d / "print_spooler.txt")
+    ps = _extract_values(ps_text)
+    result["print_spooler"] = {
+        "DisableWebPnPDownload": ps.get("DisableWebPnPDownload"),
+        "DisableHTTPPrinting": ps.get("DisableHTTPPrinting"),
+    }
+
+    # --- AutoPlay Detailed (CIS 18.9.8) ---
+    ap_text = _read(d / "autoplay.txt")
+    ap = _extract_values(ap_text)
+    result["autoplay"] = {
+        "NoDriveTypeAutoRun": ap.get("NoDriveTypeAutoRun"),
+        "NoAutorun": ap.get("NoAutorun"),
+        "NoAutoplayfornonVolume": ap.get("NoAutoplayfornonVolume"),
+    }
+
+    # --- WinRM Security (CIS 18.9.102) ---
+    winrm_client_text = _read(d / "winrm_client.txt")
+    winrm_service_text = _read(d / "winrm_service.txt")
+    winrm = {}
+    winrm["client"] = _extract_values_recursive(winrm_client_text)
+    winrm["service"] = _extract_values_recursive(winrm_service_text)
+    result["winrm_security"] = winrm
+
+    # --- AppLocker / SRP (STIG) ---
+    srp_text = _read(d / "applocker_srp.txt")
+    result["applocker_srp"] = _extract_values_recursive(srp_text)
+
+    return result
+
+
 def _assemble_hardware_inventory(d):
     _ARCH_MAP = {"0": "x86", "5": "ARM", "6": "IA-64", "9": "x64"}
     _MEM_TYPE = {
@@ -1685,6 +1905,7 @@ _SECTION_ASSEMBLERS = {
     "privacy_artifacts": _assemble_privacy_artifacts,
     "disk_storage": _assemble_disk_storage,
     "hardware_inventory": _assemble_hardware_inventory,
+    "compliance_data": _parse_compliance_data,
 }
 
 

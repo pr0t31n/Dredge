@@ -378,7 +378,7 @@ class SoftwareAnalyzer(BaseAnalyzer):
                 break
         self._add_finding(
             "DR-SFT-005",
-            "Software: Known Vulnerable Software Version",
+            "Software: Known Vulnerable Software Installed",
             worst,
             f"{len(vuln_found)} installed software package(s) match known vulnerable "
             f"versions with published CVEs or documented security defects. These "
@@ -431,7 +431,7 @@ class SoftwareAnalyzer(BaseAnalyzer):
             output = "\n".join(found_high[:15])
             self._add_finding(
                 "DR-SFT-006",
-                "Service: High-Risk Services Running",
+                "Service Hardening: High-Risk Services Running",
                 "HIGH",
                 f"{len(found_high)} high-risk service(s) are running. These services "
                 f"present significant security exposure including plaintext credential "
@@ -459,7 +459,7 @@ class SoftwareAnalyzer(BaseAnalyzer):
             output = "\n".join(found_other[:15])
             self._add_finding(
                 "DR-SFT-007",
-                "Service: Unnecessary Services Running",
+                "Service Hardening: Unnecessary Services Running",
                 "LOW",
                 f"{len(found_other)} unnecessary or legacy service(s) are running. "
                 f"While individually low-risk, each running service expands the "
@@ -518,7 +518,7 @@ class SoftwareAnalyzer(BaseAnalyzer):
             risk = "HIGH" if len(non_standard) >= 5 else "MEDIUM"
             self._add_finding(
                 "DR-SFT-008",
-                "Service: Non-Standard Service Account",
+                "Service Hardening: Services Running Under User Accounts",
                 risk,
                 f"{len(non_standard)} service(s) run under user accounts rather than "
                 f"standard service accounts (LocalSystem, LocalService, "
@@ -589,7 +589,7 @@ class SoftwareAnalyzer(BaseAnalyzer):
             output = "\n".join(found[:10])
             self._add_finding(
                 "DR-SFT-009",
-                "Software: Network Tunnel / Bypass Tool",
+                "Software: Network Tunnel or Bypass Tool Installed",
                 "HIGH",
                 f"{len(found)} network tunneling or VPN bypass tool(s) detected. "
                 f"These tools can create encrypted tunnels that bypass firewall "
@@ -645,7 +645,7 @@ class SoftwareAnalyzer(BaseAnalyzer):
             output = "\n".join(found[:15])
             self._add_finding(
                 "DR-SFT-010",
-                "Software: Development/Diagnostic Tools on Server",
+                "Software: Development or Diagnostic Tools on Production Server",
                 "MEDIUM",
                 f"{len(found)} development, diagnostic, or offensive security "
                 f"tool(s) found on a production server. These tools are commonly "
@@ -705,7 +705,7 @@ class SoftwareAnalyzer(BaseAnalyzer):
         output = "\n".join(versionless[:15])
         self._add_finding(
             "DR-SFT-011",
-            "Software: Unversioned Software Installed",
+            "Software: Software Installed Without Version Information",
             "INFO",
             f"{len(versionless)} software package(s) have no version information "
             f"in the Windows registry. This makes vulnerability assessment "
