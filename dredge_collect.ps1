@@ -2726,7 +2726,7 @@ function Collect-ADCS {
         foreach ($line in $caRaw) {
             if ($line -match '^\s*\d+\.\s+`(.+)\\(.+)`') {
                 $cas += [ordered]@{ host=$Matches[1]; ca_name=$Matches[2] }
-            } elseif ($line -match "Config string:\s*`(.+)`") {
+            } elseif ($line -match 'Config string:\s*`(.+)`') {
                 $cas += [ordered]@{ config_string=$Matches[1] }
             }
         }
