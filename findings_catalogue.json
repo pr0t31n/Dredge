@@ -1,7 +1,7 @@
 [
   {
     "id": "DR-AD-001",
-    "title": "Kerberoastable Accounts Found",
+    "title": "Active Directory: Kerberoastable Accounts",
     "aliases": [],
     "source_tools": [
       "dredge"
@@ -50,7 +50,7 @@
   },
   {
     "id": "DR-AD-002",
-    "title": "AS-REP Roastable Accounts Found",
+    "title": "Active Directory: AS-REP Roastable Accounts",
     "aliases": [],
     "source_tools": [
       "dredge"
@@ -100,7 +100,7 @@
   },
   {
     "id": "DR-AD-003",
-    "title": "Unconstrained Delegation Configured",
+    "title": "Active Directory: Unconstrained Delegation",
     "aliases": [],
     "source_tools": [
       "dredge"
@@ -153,7 +153,7 @@
   },
   {
     "id": "DR-AD-004",
-    "title": "Weak Domain Password Policy",
+    "title": "Policy: Weak Domain Password Policy",
     "aliases": [],
     "source_tools": [
       "dredge"
@@ -198,7 +198,7 @@
   },
   {
     "id": "DR-AD-005",
-    "title": "LDAP Signing Not Enforced",
+    "title": "Active Directory: LDAP Signing Not Enforced",
     "aliases": [],
     "source_tools": [
       "dredge"
@@ -248,7 +248,7 @@
   },
   {
     "id": "DR-AD-006",
-    "title": "Kerberos DES Encryption Enabled on Accounts",
+    "title": "Authentication: Kerberos DES Encryption Enabled",
     "aliases": [],
     "source_tools": [
       "dredge"
@@ -288,7 +288,7 @@
     "searchsploit_terms": [],
     "metasploit_modules": [],
     "kev": false,
-    "remediation_brief": "Disable DES and RC4 encryption types in the domain. Set msDS-SupportedEncryptionTypes to support only AES128 (0x08) and AES256 (0x10). Test thoroughly — legacy systems (especially pre-2008 R2) may require RC4. Migrate legacy systems before disabling.",
+    "remediation_brief": "Disable DES and RC4 encryption types in the domain. Set msDS-SupportedEncryptionTypes to support only AES128 (0x08) and AES256 (0x10). Test thoroughly \u2014 legacy systems (especially pre-2008 R2) may require RC4. Migrate legacy systems before disabling.",
     "remediation_component": "Access Control",
     "remediation_category": "Active Directory",
     "remediation_effort": "Moderate",
@@ -298,7 +298,7 @@
   },
   {
     "id": "DR-AD-008",
-    "title": "Resource-Based Constrained Delegation (RBCD) Configured",
+    "title": "Active Directory: RBCD Configured",
     "aliases": [],
     "source_tools": [
       "dredge"
@@ -351,7 +351,7 @@
   },
   {
     "id": "DR-AD-009",
-    "title": "Domain Functional Level Outdated",
+    "title": "Active Directory: Domain Functional Level Outdated",
     "aliases": [],
     "source_tools": [
       "dredge"
@@ -383,7 +383,7 @@
     "searchsploit_terms": [],
     "metasploit_modules": [],
     "kev": false,
-    "remediation_brief": "Raise the domain and forest functional levels after ensuring all Domain Controllers are running a supported Windows Server version. This is a one-way operation — test in a lab environment first. Target at minimum Windows Server 2016 functional level.",
+    "remediation_brief": "Raise the domain and forest functional levels after ensuring all Domain Controllers are running a supported Windows Server version. This is a one-way operation \u2014 test in a lab environment first. Target at minimum Windows Server 2016 functional level.",
     "remediation_component": "Access Control",
     "remediation_category": "Active Directory",
     "remediation_effort": "Significant",
@@ -393,7 +393,7 @@
   },
   {
     "id": "DR-AD-010",
-    "title": "AdminSDHolder Orphaned Protected Accounts",
+    "title": "Active Directory: AdminSDHolder Orphaned Accounts",
     "aliases": [],
     "source_tools": [
       "dredge"
@@ -434,7 +434,7 @@
   },
   {
     "id": "DR-BRW-001",
-    "title": "Malicious Browser Extension Detected ({browser})",
+    "title": "Browser: Malicious Extension Detected ({browser})",
     "aliases": [
       "Malware Extension",
       "Adware Extension"
@@ -499,7 +499,7 @@
   },
   {
     "id": "DR-BRW-002",
-    "title": "Browser Proxy Configured ({browser})",
+    "title": "Browser: Proxy Configured ({browser})",
     "aliases": [
       "Unrecognized Extension"
     ],
@@ -563,7 +563,7 @@
   },
   {
     "id": "DR-BRW-003",
-    "title": "Suspicious Bookmark Detected ({browser})",
+    "title": "Browser: Suspicious Bookmark Detected ({browser})",
     "aliases": [
       "Old Browser",
       "Unpatched Browser"
@@ -628,7 +628,7 @@
   },
   {
     "id": "DR-CERT-001",
-    "title": "Expired Certificate",
+    "title": "Certificate: Expired Certificate",
     "aliases": [
       "Certificate Past Expiry"
     ],
@@ -687,7 +687,7 @@
   },
   {
     "id": "DR-CERT-002",
-    "title": "Certificate Expiring Soon",
+    "title": "Certificate: Expiring Soon",
     "aliases": [
       "Certificate Near Expiry"
     ],
@@ -744,7 +744,7 @@
   },
   {
     "id": "DR-CERT-003",
-    "title": "Self-Signed Certificate in Trust Store",
+    "title": "Certificate: Self-Signed in Trust Store",
     "aliases": [
       "SHA1 Certificate",
       "Short Key Certificate"
@@ -811,7 +811,7 @@
   },
   {
     "id": "DR-CERT-004",
-    "title": "Weak Certificate Signature Algorithm",
+    "title": "Certificate: Weak Signature Algorithm",
     "aliases": [
       "Untrusted Root CA"
     ],
@@ -874,7 +874,7 @@
   },
   {
     "id": "DR-CERT-005",
-    "title": "Weak Certificate Key Size",
+    "title": "Certificate: Weak Key Size",
     "aliases": [
       "SHA1 Certificate",
       "Short Key Certificate"
@@ -935,7 +935,7 @@
   },
   {
     "id": "DR-CMP-001",
-    "title": "Firewall Profile Disabled",
+    "title": "Firewall: Profile Disabled",
     "aliases": [
       "Low CIS Compliance"
     ],
@@ -994,7 +994,7 @@
   },
   {
     "id": "DR-CMP-002",
-    "title": "Screen Lock Timeout Not Configured",
+    "title": "Policy: Screen Lock Timeout Not Configured",
     "aliases": [
       "Moderate CIS Compliance Gap"
     ],
@@ -1051,14 +1051,14 @@
   },
   {
     "id": "DR-CMP-003",
-    "title": "NetBIOS over TCP/IP Enabled",
+    "title": "Network Hardening: NetBIOS over TCP/IP Enabled",
     "aliases": [
       "Critical STIG Violations"
     ],
     "source_tools": [
       "dredge"
     ],
-    "risk": "MEDIUM",
+    "risk": "HIGH",
     "description": "Category I DISA STIG findings (high severity) are present, representing vulnerabilities that could directly lead to system compromise.",
     "impact": "STIG CAT I findings represent the most critical security weaknesses. They typically allow unauthorized access, denial of service, or information disclosure with high impact. DoD and many other organizations require zero CAT I findings for system accreditation.",
     "cwe": [
@@ -1116,7 +1116,7 @@
   },
   {
     "id": "DR-CMP-004",
-    "title": "IPv6 Transition Technologies Enabled",
+    "title": "Network Hardening: IPv6 Transition Technologies",
     "aliases": [
       "Moderate STIG Violations"
     ],
@@ -1174,7 +1174,7 @@
   },
   {
     "id": "DR-CMP-005",
-    "title": "Remote Registry Service Enabled",
+    "title": "Service Hardening: Remote Registry Enabled",
     "aliases": [
       "Hardening Assessment Score",
       "Security Posture Score"
@@ -1239,7 +1239,7 @@
   },
   {
     "id": "DR-EVT-001",
-    "title": "Brute Force Attack Detected",
+    "title": "Event Log: Brute Force Attack Detected",
     "aliases": [
       "Audit Log Cleared",
       "Event Log Deletion"
@@ -1304,7 +1304,7 @@
   },
   {
     "id": "DR-EVT-002",
-    "title": "Account Lockouts Detected",
+    "title": "Event Log: Account Lockouts Detected",
     "aliases": [
       "Multiple Failed Logins",
       "Login Brute Force"
@@ -1371,7 +1371,7 @@
   },
   {
     "id": "DR-EVT-003",
-    "title": "Security Log Cleared — Evidence Tampering",
+    "title": "Event Log: Security Log Cleared",
     "aliases": [
       "User Account Locked Out"
     ],
@@ -1435,7 +1435,7 @@
   },
   {
     "id": "DR-EVT-004",
-    "title": "Suspicious PowerShell Activity in Event Logs",
+    "title": "Event Log: Suspicious PowerShell Activity",
     "aliases": [
       "Encoded PowerShell",
       "Download Cradle Detected"
@@ -1501,7 +1501,7 @@
   },
   {
     "id": "DR-EVT-005",
-    "title": "New Service Installations Detected",
+    "title": "Event Log: New Service Installations",
     "aliases": [
       "Special Privileges Assigned",
       "Unusual Privilege Use"
@@ -1566,7 +1566,7 @@
   },
   {
     "id": "DR-EVT-006",
-    "title": "User Account Created",
+    "title": "Event Log: User Account Created",
     "aliases": [
       "Service Created",
       "New Service Registered"
@@ -1631,7 +1631,7 @@
   },
   {
     "id": "DR-HDN-001",
-    "title": "UAC Disabled",
+    "title": "System Hardening: UAC Disabled",
     "aliases": [
       "User Account Control Disabled",
       "EnableLUA Disabled"
@@ -1705,7 +1705,7 @@
   },
   {
     "id": "DR-HDN-002",
-    "title": "UAC Prompt Behavior Weak",
+    "title": "System Hardening: UAC Prompt Behavior Weak",
     "aliases": [
       "UAC Auto-Elevate",
       "Weak UAC Configuration"
@@ -1772,7 +1772,7 @@
   },
   {
     "id": "DR-HDN-003",
-    "title": "SMBv1 Protocol Enabled",
+    "title": "Network Hardening: SMBv1 Protocol Enabled",
     "aliases": [
       "SMB1 Enabled",
       "Server Message Block Version 1"
@@ -1851,7 +1851,7 @@
   },
   {
     "id": "DR-HDN-004",
-    "title": "SMB Signing Not Required",
+    "title": "System Hardening: SMB Signing Not Required",
     "aliases": [
       "SMB Signing Disabled",
       "RequireSecuritySignature Disabled"
@@ -1926,7 +1926,7 @@
   },
   {
     "id": "DR-HDN-005",
-    "title": "NTLMv1 Authentication Allowed",
+    "title": "Authentication: NTLMv1 Authentication Allowed",
     "aliases": [
       "Weak NTLM Configuration",
       "LmCompatibilityLevel Low"
@@ -1997,7 +1997,7 @@
   },
   {
     "id": "DR-HDN-006",
-    "title": "LM Password Hashes Stored",
+    "title": "Authentication: LM Password Hashes Stored",
     "aliases": [
       "LM Hash Storage Enabled",
       "NoLMHash Not Set"
@@ -2064,7 +2064,7 @@
   },
   {
     "id": "DR-HDN-007",
-    "title": "AutoRun Enabled",
+    "title": "System Hardening: AutoRun Enabled",
     "aliases": [
       "AutoPlay Enabled",
       "NoDriveTypeAutoRun Not Set"
@@ -2135,7 +2135,7 @@
   },
   {
     "id": "DR-HDN-008",
-    "title": "WDigest Plaintext Credentials Enabled",
+    "title": "Credential Exposure: WDigest Plaintext Credentials",
     "aliases": [
       "WDigest Cleartext Passwords",
       "UseLogonCredential Enabled"
@@ -2208,7 +2208,7 @@
   },
   {
     "id": "DR-HDN-009",
-    "title": "LSA Protection Not Enabled",
+    "title": "System Hardening: LSA Protection Not Enabled",
     "aliases": [
       "RunAsPPL Not Set",
       "LSASS Not Protected"
@@ -2278,7 +2278,7 @@
   },
   {
     "id": "DR-HDN-010",
-    "title": "Credential Guard Not Enabled",
+    "title": "System Hardening: Credential Guard Not Enabled",
     "aliases": [
       "VBS Not Enabled",
       "Virtualization Based Security Disabled"
@@ -2343,14 +2343,14 @@
   },
   {
     "id": "DR-HDN-011",
-    "title": "LLMNR Enabled",
+    "title": "Network Hardening: LLMNR Enabled",
     "aliases": [
       "Link-Local Multicast Name Resolution Enabled"
     ],
     "source_tools": [
       "dredge"
     ],
-    "risk": "MEDIUM",
+    "risk": "HIGH",
     "description": "Link-Local Multicast Name Resolution (LLMNR) is enabled, allowing unauthenticated name resolution on the local network.",
     "impact": "An attacker on the local network can respond to LLMNR queries to capture NTLMv2 hashes from connecting clients using tools like Responder. These hashes can be cracked offline or relayed to other services for unauthorized access.",
     "cwe": [
@@ -2411,7 +2411,7 @@
   },
   {
     "id": "DR-HDN-012",
-    "title": "WPAD Enabled",
+    "title": "Network Hardening: WPAD Enabled",
     "aliases": [
       "Web Proxy Auto-Discovery Enabled"
     ],
@@ -2479,7 +2479,7 @@
   },
   {
     "id": "DR-HDN-013",
-    "title": "PowerShell Script Block Logging Disabled",
+    "title": "Monitoring: PowerShell Script Block Logging Disabled",
     "aliases": [
       "PS Script Block Logging Off"
     ],
@@ -2545,7 +2545,7 @@
   },
   {
     "id": "DR-HDN-014",
-    "title": "PowerShell Module Logging Disabled",
+    "title": "Monitoring: PowerShell Module Logging Disabled",
     "aliases": [
       "PS Module Logging Off"
     ],
@@ -2609,7 +2609,7 @@
   },
   {
     "id": "DR-HDN-015",
-    "title": "PowerShell Transcription Disabled",
+    "title": "Monitoring: PowerShell Transcription Disabled",
     "aliases": [
       "PS Transcription Off"
     ],
@@ -2667,7 +2667,7 @@
   },
   {
     "id": "DR-HDN-016",
-    "title": "PowerShell v2 Engine Available",
+    "title": "System Hardening: PowerShell v2 Engine Available",
     "aliases": [
       "PS v2 Not Removed",
       "Legacy PowerShell Engine"
@@ -2732,7 +2732,7 @@
   },
   {
     "id": "DR-HDN-017",
-    "title": "Windows Defender Disabled",
+    "title": "Endpoint Protection: Windows Defender Disabled",
     "aliases": [
       "Antivirus Disabled",
       "Real-Time Protection Off"
@@ -2802,7 +2802,7 @@
   },
   {
     "id": "DR-HDN-018",
-    "title": "Windows Defender Exclusions Present",
+    "title": "Endpoint Protection: Defender Exclusions Present",
     "aliases": [
       "AV Exclusions Configured",
       "Defender Whitelist"
@@ -2866,7 +2866,7 @@
   },
   {
     "id": "DR-HDN-019",
-    "title": "Windows Defender Real-Time Protection Off",
+    "title": "Endpoint Protection: Defender Real-Time Protection Off",
     "aliases": [
       "RTP Disabled",
       "Real-Time Monitoring Off"
@@ -2930,7 +2930,7 @@
   },
   {
     "id": "DR-HDN-020",
-    "title": "Remote Desktop Without NLA",
+    "title": "Remote Desktop: RDP Without NLA",
     "aliases": [
       "RDP Without Network Level Authentication",
       "NLA Disabled"
@@ -3005,7 +3005,7 @@
   },
   {
     "id": "DR-HDN-021",
-    "title": "DEP Not Enabled System-Wide",
+    "title": "System Hardening: DEP Not System-Wide",
     "aliases": [
       "Data Execution Prevention Disabled",
       "NX Bit Not Enforced"
@@ -3070,7 +3070,7 @@
   },
   {
     "id": "DR-HDN-022",
-    "title": "Anonymous Access to Named Pipes",
+    "title": "Access Control: Anonymous Named Pipe Access",
     "aliases": [
       "RestrictNullSessAccess Disabled",
       "Null Session Named Pipes"
@@ -3141,7 +3141,7 @@
   },
   {
     "id": "DR-HDN-023",
-    "title": "Null Session Access Allowed",
+    "title": "Access Control: Null Session Access",
     "aliases": [
       "Anonymous Share Enumeration",
       "RestrictAnonymousSAM Disabled"
@@ -3210,7 +3210,7 @@
   },
   {
     "id": "DR-HDN-024",
-    "title": "Audit Policy Insufficient",
+    "title": "Policy: Audit Policy Insufficient",
     "aliases": [
       "Inadequate Windows Auditing",
       "Missing Audit Categories"
@@ -3277,7 +3277,7 @@
   },
   {
     "id": "DR-HDN-025",
-    "title": "Print Spooler Running on Server",
+    "title": "Service Hardening: Print Spooler Running",
     "aliases": [
       "Spooler Service Active",
       "PrintNightmare Vulnerable"
@@ -3351,7 +3351,7 @@
   },
   {
     "id": "DR-NET-001",
-    "title": "Suspicious Outbound Connection Detected",
+    "title": "Network: Suspicious Outbound Connection",
     "aliases": [
       "Domain Firewall Off"
     ],
@@ -3424,7 +3424,7 @@
   },
   {
     "id": "DR-NET-002",
-    "title": "High-Risk Port Exposed",
+    "title": "Network: High-Risk Port Exposed",
     "aliases": [
       "Private Firewall Off"
     ],
@@ -3491,7 +3491,7 @@
   },
   {
     "id": "DR-NET-003",
-    "title": "System Proxy Configured",
+    "title": "Network: Proxy Configured",
     "aliases": [
       "Public Firewall Off"
     ],
@@ -3560,7 +3560,7 @@
   },
   {
     "id": "DR-NET-004",
-    "title": "DNS Pointing to External Servers on Domain-Joined System",
+    "title": "Network: External DNS on Domain Host",
     "aliases": [
       "Dangerous Port Open",
       "Risky Listening Service"
@@ -3626,7 +3626,7 @@
   },
   {
     "id": "DR-PROC-001",
-    "title": "Known Malicious Process Detected",
+    "title": "Process: Known Malicious Process Detected",
     "aliases": [
       "Malware Process Running",
       "Hacking Tool Detected"
@@ -3701,7 +3701,7 @@
   },
   {
     "id": "DR-PROC-002",
-    "title": "Process Running from Temporary Directory",
+    "title": "Process: Running from Temporary Directory",
     "aliases": [
       "Process Running from Temp",
       "Temp Directory Execution"
@@ -3771,7 +3771,7 @@
   },
   {
     "id": "DR-PROC-003",
-    "title": "Process with No Executable Path",
+    "title": "Process: No Executable Path",
     "aliases": [
       "SYSTEM Process Not Signed"
     ],
@@ -3840,7 +3840,7 @@
   },
   {
     "id": "DR-PROC-004",
-    "title": "SYSTEM Process Running from User-Writable Path",
+    "title": "Process: SYSTEM Process in User-Writable Path",
     "aliases": [
       "Unquoted Service Binary Path"
     ],
@@ -3916,7 +3916,7 @@
   },
   {
     "id": "DR-RMT-001",
-    "title": "Unauthorized Remote Management Tool Detected",
+    "title": "Remote Access: Unauthorized RMT Detected",
     "aliases": [
       "Shadow IT RMT",
       "Unauthorized Remote Access"
@@ -3987,7 +3987,7 @@
   },
   {
     "id": "DR-RMT-002",
-    "title": "RDP Enabled",
+    "title": "Remote Desktop: RDP Enabled",
     "aliases": [
       "RMT Active Connection",
       "Remote Access Active"
@@ -4051,7 +4051,7 @@
   },
   {
     "id": "DR-RMT-003",
-    "title": "WinRM Service Running",
+    "title": "Service Hardening: WinRM Running",
     "aliases": [
       "RDP No NLA"
     ],
@@ -4123,7 +4123,7 @@
   },
   {
     "id": "DR-RMT-004",
-    "title": "SSH Server Enabled",
+    "title": "Service Hardening: SSH Server Enabled",
     "aliases": [
       "WinRM Insecure Auth"
     ],
@@ -4186,7 +4186,7 @@
   },
   {
     "id": "DR-RMT-005",
-    "title": "Multiple Remote Management Tools Installed",
+    "title": "Service Hardening: Multiple RMT Tools",
     "aliases": [
       "SSH Server Active"
     ],
@@ -4245,7 +4245,7 @@
   },
   {
     "id": "DR-SFT-001",
-    "title": "End-of-Life Software Installed",
+    "title": "EOL Software: End-of-Life Software Installed",
     "aliases": [
       "EOL Software",
       "Unsupported Application"
@@ -4310,7 +4310,7 @@
   },
   {
     "id": "DR-SFT-002",
-    "title": "Remote Access Software Installed",
+    "title": "Software: Remote Access Software",
     "aliases": [
       "Vulnerable Application Version"
     ],
@@ -4374,7 +4374,7 @@
   },
   {
     "id": "DR-SFT-003",
-    "title": "Suspicious Startup Item",
+    "title": "Software: Suspicious Startup Item",
     "aliases": [
       "Compilers on Prod",
       "Debug Tools Installed"
@@ -4439,7 +4439,7 @@
   },
   {
     "id": "DR-SFT-004",
-    "title": "P2P/Torrent Software Installed",
+    "title": "Software: P2P/Torrent Software",
     "aliases": [
       "Unapproved Application"
     ],
@@ -4497,7 +4497,7 @@
   },
   {
     "id": "DR-SRV-001",
-    "title": "SQL Server Using Mixed Authentication Mode",
+    "title": "Authentication: SQL Server Mixed Authentication",
     "aliases": [
       "Default IIS Setup"
     ],
@@ -4557,7 +4557,7 @@
   },
   {
     "id": "DR-SRV-002",
-    "title": "IIS Running with Default Site",
+    "title": "Service Hardening: IIS Default Site",
     "aliases": [
       "SQL Mixed Auth",
       "SQL Server Authentication Mode"
@@ -4625,7 +4625,7 @@
   },
   {
     "id": "DR-SRV-003",
-    "title": "Unnecessary Server Roles Installed on Workstation",
+    "title": "Service Hardening: Unnecessary Server Roles",
     "aliases": [
       "SA Account Active",
       "Default SQL Admin"
@@ -4694,7 +4694,7 @@
   },
   {
     "id": "DR-SRV-004",
-    "title": "Web Server Running on Endpoint Workstation",
+    "title": "Service Hardening: Web Server on Workstation",
     "aliases": [
       "EOL Server Application"
     ],
@@ -4757,7 +4757,7 @@
   },
   {
     "id": "DR-SYS-001",
-    "title": "End-of-Life Windows Version",
+    "title": "EOL Software: End-of-Life Windows Version",
     "aliases": [
       "Unsupported Windows OS",
       "EOL Windows Operating System"
@@ -4841,7 +4841,7 @@
   },
   {
     "id": "DR-SYS-002",
-    "title": "Missing Critical Security Updates",
+    "title": "Patch Management: Missing Critical Updates",
     "aliases": [
       "Pending Windows Updates",
       "Unpatched System"
@@ -4921,7 +4921,7 @@
   },
   {
     "id": "DR-SYS-003",
-    "title": "Windows Update Service Disabled",
+    "title": "Patch Management: Windows Update Disabled",
     "aliases": [
       "WUAUSERV Disabled",
       "Update Service Stopped"
@@ -4988,7 +4988,7 @@
   },
   {
     "id": "DR-SYS-004",
-    "title": "WSUS Not Configured",
+    "title": "Patch Management: WSUS Not Configured",
     "aliases": [
       "No Update Management",
       "No WSUS Server"
@@ -5047,7 +5047,7 @@
   },
   {
     "id": "DR-SYS-005",
-    "title": "System Uptime Exceeds 90 Days",
+    "title": "Patch Management: System Uptime Exceeds 90 Days",
     "aliases": [
       "Extended System Uptime",
       "Long Uptime Without Reboot"
@@ -5103,7 +5103,7 @@
   },
   {
     "id": "DR-SYS-006",
-    "title": "No Windows Backup Configured",
+    "title": "Patch Management: No Backup Configured",
     "aliases": [
       "Backup Not Configured",
       "No Backup Solution"
@@ -5170,7 +5170,7 @@
   },
   {
     "id": "DR-SYS-007",
-    "title": "Last Backup Older Than 30 Days",
+    "title": "Patch Management: Last Backup Over 30 Days",
     "aliases": [
       "Stale Backup",
       "Outdated Backup"
@@ -5228,7 +5228,7 @@
   },
   {
     "id": "DR-SYS-008",
-    "title": "BitLocker Not Enabled",
+    "title": "System Hardening: BitLocker Not Enabled",
     "aliases": [
       "Disk Not Encrypted",
       "No Full Disk Encryption"
@@ -5299,7 +5299,7 @@
   },
   {
     "id": "DR-SYS-009",
-    "title": "TPM Not Available or Not Ready",
+    "title": "System Hardening: TPM Not Available",
     "aliases": [
       "No TPM Chip",
       "TPM Not Initialized"
@@ -5347,7 +5347,7 @@
   },
   {
     "id": "DR-SYS-010",
-    "title": "Secure Boot Not Enabled",
+    "title": "System Hardening: Secure Boot Not Enabled",
     "aliases": [
       "UEFI Secure Boot Disabled"
     ],
@@ -5415,7 +5415,7 @@
   },
   {
     "id": "DR-USR-001",
-    "title": "Built-in Administrator Account Enabled",
+    "title": "Account Management: Built-in Administrator Enabled",
     "aliases": [
       "Default Admin Active",
       "RID 500 Enabled"
@@ -5480,7 +5480,7 @@
   },
   {
     "id": "DR-USR-002",
-    "title": "Guest Account Enabled",
+    "title": "Account Management: Guest Account Enabled",
     "aliases": [
       "Guest User Active"
     ],
@@ -5543,7 +5543,7 @@
   },
   {
     "id": "DR-USR-003",
-    "title": "Password Never Expires on User Account",
+    "title": "Account Management: Password Never Expires",
     "aliases": [
       "Too Many Local Admins"
     ],
@@ -5551,8 +5551,8 @@
       "dredge"
     ],
     "risk": "MEDIUM",
-    "description": "The local Administrators group contains more than 3 members, indicating excessive administrative access.",
-    "impact": "Each local administrator account is a potential credential for full system compromise. Excessive admin accounts increase the attack surface for pass-the-hash, credential theft, and privilege abuse. Lateral movement is easier when admin credentials are widespread.",
+    "description": "One or more interactive user accounts have the 'Password never expires' flag set.",
+    "impact": "Passwords that never expire may remain unchanged for years, increasing the window for compromise through credential theft or brute force. Compliance frameworks universally require periodic password rotation.",
     "cwe": [
       "CWE-250"
     ],
@@ -5597,7 +5597,7 @@
     "searchsploit_terms": [],
     "metasploit_modules": [],
     "kev": false,
-    "remediation_brief": "Review the local Administrators group and remove unnecessary members. Implement the principle of least privilege using standard user accounts for daily operations. Consider implementing LAPS and just-in-time admin access solutions.",
+    "remediation_brief": "Remove the 'Password never expires' flag from interactive user accounts. Implement a maximum password age policy (60-90 days). Service accounts should use managed service accounts (gMSA) or be documented with compensating controls if password expiry would break functionality.",
     "remediation_component": "Configuration",
     "remediation_category": "Access Control",
     "remediation_effort": "Easy",
@@ -5607,7 +5607,7 @@
   },
   {
     "id": "DR-USR-004",
-    "title": "Excessive Local Administrators",
+    "title": "Account Management: Excessive Local Administrators",
     "aliases": [
       "Non-Expiring Password"
     ],
@@ -5615,8 +5615,8 @@
       "dredge"
     ],
     "risk": "MEDIUM",
-    "description": "One or more interactive user accounts have the 'Password never expires' flag set.",
-    "impact": "Passwords that never expire may remain unchanged for years, increasing the window for compromise through credential theft or brute force. Compliance frameworks universally require periodic password rotation.",
+    "description": "The local Administrators group contains more than 3 members, indicating excessive administrative access.",
+    "impact": "Each local administrator account is a potential credential for full system compromise. Excessive admin accounts increase the attack surface for pass-the-hash, credential theft, and privilege abuse. Lateral movement is easier when admin credentials are widespread.",
     "cwe": [
       "CWE-262"
     ],
@@ -5661,7 +5661,7 @@
     "searchsploit_terms": [],
     "metasploit_modules": [],
     "kev": false,
-    "remediation_brief": "Remove the 'Password never expires' flag from interactive user accounts. Implement a maximum password age policy (60-90 days). Service accounts should use managed service accounts (gMSA) or be documented with compensating controls if password expiry would break functionality.",
+    "remediation_brief": "Review the local Administrators group and remove unnecessary members. Implement the principle of least privilege using standard user accounts for daily operations. Consider implementing LAPS and just-in-time admin access solutions.",
     "remediation_component": "Configuration",
     "remediation_category": "Authentication",
     "remediation_effort": "Moderate",
@@ -5671,7 +5671,7 @@
   },
   {
     "id": "DR-USR-005",
-    "title": "Weak Password Policy",
+    "title": "Policy: Weak Password Policy",
     "aliases": [
       "Insufficient Password Requirements"
     ],
@@ -5735,7 +5735,7 @@
   },
   {
     "id": "DR-USR-006",
-    "title": "Account Lockout Not Configured or Too Permissive",
+    "title": "Authentication: Account Lockout Not Configured",
     "aliases": [
       "No Account Lockout",
       "Lockout Threshold Zero"
@@ -5801,7 +5801,7 @@
   },
   {
     "id": "DR-CRED-001",
-    "title": "WiFi Passwords Stored in Cleartext",
+    "title": "Credential Exposure: WiFi Passwords in Cleartext",
     "aliases": [
       "Wireless profile cleartext key",
       "WiFi credential exposure"
@@ -5881,7 +5881,7 @@
   },
   {
     "id": "DR-CRED-002",
-    "title": "Saved Remote Sessions Found",
+    "title": "Credential Exposure: Saved Remote Sessions",
     "aliases": [
       "PuTTY saved sessions",
       "WinSCP stored credentials",
@@ -5966,7 +5966,7 @@
   },
   {
     "id": "DR-CRED-003",
-    "title": "Credential Files on Disk",
+    "title": "Credential Exposure: Credential Files on Disk",
     "aliases": [
       "Unattend.xml credentials",
       "Sysprep credentials",
@@ -6052,7 +6052,7 @@
   },
   {
     "id": "DR-CRED-004",
-    "title": "GPP cpassword Credential Exposure",
+    "title": "Credential Exposure: GPP cpassword Exposure",
     "aliases": [
       "Group Policy Preferences password",
       "MS14-025",
@@ -6145,7 +6145,7 @@
   },
   {
     "id": "DR-CRED-005",
-    "title": "Cloud Credential Files Found",
+    "title": "Credential Exposure: Cloud Credential Files",
     "aliases": [
       "AWS credentials file",
       "Azure profile",
@@ -6228,7 +6228,7 @@
   },
   {
     "id": "DR-CRED-006",
-    "title": "Windows Credential Manager Entries",
+    "title": "Credential Exposure: Credential Manager Entries",
     "aliases": [
       "Windows Vault",
       "Stored Windows credentials"
@@ -6238,7 +6238,7 @@
     ],
     "risk": "INFO",
     "description": "Windows Credential Manager (Vault) contains stored credential entries. These may include web credentials, Windows credentials for network shares, and application-specific credentials protected by DPAPI.",
-    "impact": "While Credential Manager entries are protected by DPAPI (tied to the user's logon session), they can be decrypted by any process running as that user. If an attacker gains user-level access, they can extract all Vault credentials using tools like mimikatz or built-in vaultcmd commands. This finding is informational — the presence of stored credentials is expected behavior.",
+    "impact": "While Credential Manager entries are protected by DPAPI (tied to the user's logon session), they can be decrypted by any process running as that user. If an attacker gains user-level access, they can extract all Vault credentials using tools like mimikatz or built-in vaultcmd commands. This finding is informational \u2014 the presence of stored credentials is expected behavior.",
     "cwe": [
       "CWE-522"
     ],
@@ -6296,7 +6296,7 @@
   },
   {
     "id": "DR-CRED-007",
-    "title": "DPAPI Master Key Accessible",
+    "title": "Credential Exposure: DPAPI Master Key Accessible",
     "aliases": [
       "DPAPI credential exposure",
       "Data Protection API key"
@@ -6374,7 +6374,7 @@
   },
   {
     "id": "DR-CRED-008",
-    "title": "KeePass Database Files Found",
+    "title": "Credential Exposure: KeePass Database Found",
     "aliases": [
       "KeePass .kdbx file",
       "Password database on disk"
@@ -6447,7 +6447,7 @@
   },
   {
     "id": "DR-CRED-009",
-    "title": "SSH Private Keys Found",
+    "title": "Credential Exposure: SSH Private Keys Found",
     "aliases": [
       "SSH key on disk",
       "id_rsa found",
@@ -6531,7 +6531,7 @@
   },
   {
     "id": "DR-PRIV-001",
-    "title": "AlwaysInstallElevated Enabled",
+    "title": "Privilege Escalation: AlwaysInstallElevated Enabled",
     "aliases": [
       "MSI privilege escalation",
       "AlwaysInstallElevated registry"
@@ -6541,7 +6541,7 @@
     ],
     "risk": "HIGH",
     "description": "The AlwaysInstallElevated policy is enabled in both HKLM and HKCU registry hives. This Windows Installer policy allows any user to install MSI packages with SYSTEM-level privileges, regardless of the user's actual privilege level.",
-    "impact": "Any standard user can create a malicious MSI package (e.g., using msfvenom) and install it with SYSTEM privileges. This is a trivial, reliable privilege escalation path that requires no exploitation of software vulnerabilities — only the misconfiguration itself. Tools like PowerUp, WinPEAS, and Metasploit all check for and exploit this setting.",
+    "impact": "Any standard user can create a malicious MSI package (e.g., using msfvenom) and install it with SYSTEM privileges. This is a trivial, reliable privilege escalation path that requires no exploitation of software vulnerabilities \u2014 only the misconfiguration itself. Tools like PowerUp, WinPEAS, and Metasploit all check for and exploit this setting.",
     "cwe": [
       "CWE-269"
     ],
@@ -6614,7 +6614,7 @@
   },
   {
     "id": "DR-PRIV-002",
-    "title": "Modifiable Service Binary",
+    "title": "Privilege Escalation: Modifiable Service Binary",
     "aliases": [
       "Writable service executable",
       "Service binary hijack"
@@ -6696,7 +6696,7 @@
   },
   {
     "id": "DR-PRIV-003",
-    "title": "DLL Search Order Hijacking Risk",
+    "title": "Privilege Escalation: DLL Search Order Hijacking",
     "aliases": [
       "DLL hijacking",
       "DLL preloading",
@@ -6775,7 +6775,7 @@
   },
   {
     "id": "DR-PRIV-004",
-    "title": "Dangerous Token Privileges Held",
+    "title": "Privilege Escalation: Dangerous Token Privileges",
     "aliases": [
       "SeImpersonatePrivilege",
       "SeAssignPrimaryTokenPrivilege",
@@ -6860,7 +6860,7 @@
   },
   {
     "id": "DR-PRIV-005",
-    "title": "Unquoted Service Path with Writable Directory",
+    "title": "Privilege Escalation: Unquoted Service Path",
     "aliases": [
       "Unquoted service path",
       "Service path injection"
@@ -6938,7 +6938,7 @@
   },
   {
     "id": "DR-PRIV-006",
-    "title": "Named Pipe Permission Weakness",
+    "title": "Access Control: Named Pipe Permission Weakness",
     "aliases": [
       "Writable named pipe",
       "Named pipe ACL"
@@ -7011,7 +7011,7 @@
   },
   {
     "id": "DR-PERS-001",
-    "title": "WMI Event Subscription Persistence",
+    "title": "Persistence: WMI Event Subscription",
     "aliases": [
       "WMI persistence",
       "WMI event consumer"
@@ -7021,7 +7021,7 @@
     ],
     "risk": "HIGH",
     "description": "Active WMI event subscriptions (EventFilter + EventConsumer + FilterToConsumerBinding) were found on this system. WMI subscriptions execute automatically in response to system events and survive reboots, making them a powerful persistence mechanism.",
-    "impact": "WMI event subscriptions run with SYSTEM privileges and are difficult to detect through standard monitoring. An attacker can use them to execute malicious scripts or binaries when specific events occur (user logon, process creation, time-based triggers). WMI persistence is used by APT groups and is notoriously resistant to removal — it survives reinstallation of applications and many cleanup procedures.",
+    "impact": "WMI event subscriptions run with SYSTEM privileges and are difficult to detect through standard monitoring. An attacker can use them to execute malicious scripts or binaries when specific events occur (user logon, process creation, time-based triggers). WMI persistence is used by APT groups and is notoriously resistant to removal \u2014 it survives reinstallation of applications and many cleanup procedures.",
     "cwe": [
       "CWE-506"
     ],
@@ -7092,7 +7092,7 @@
   },
   {
     "id": "DR-PERS-002",
-    "title": "COM Object Hijacking Detected",
+    "title": "Persistence: COM Object Hijacking",
     "aliases": [
       "CLSID hijack",
       "COM hijack persistence"
@@ -7169,7 +7169,7 @@
   },
   {
     "id": "DR-PERS-003",
-    "title": "AppInit_DLLs Configured",
+    "title": "Persistence: AppInit_DLLs Configured",
     "aliases": [
       "AppInit DLL injection",
       "AppInit_DLLs registry"
@@ -7178,7 +7178,7 @@
       "dredge"
     ],
     "risk": "HIGH",
-    "description": "The AppInit_DLLs registry value is configured with one or more DLL paths. Windows loads any DLL listed in AppInit_DLLs into every process that loads user32.dll — which includes virtually all GUI applications. This mechanism is a well-known persistence and injection technique.",
+    "description": "The AppInit_DLLs registry value is configured with one or more DLL paths. Windows loads any DLL listed in AppInit_DLLs into every process that loads user32.dll \u2014 which includes virtually all GUI applications. This mechanism is a well-known persistence and injection technique.",
     "impact": "DLLs specified in AppInit_DLLs are loaded into every GUI process on the system, providing system-wide code injection. An attacker can use this for keylogging, credential interception, API hooking, or persistent backdoor access. The injected DLL runs with the privileges of each host process, potentially including SYSTEM-level services.",
     "cwe": [
       "CWE-427"
@@ -7248,7 +7248,7 @@
   },
   {
     "id": "DR-PERS-004",
-    "title": "Image File Execution Options Debugger Set",
+    "title": "Persistence: IFEO Debugger Set",
     "aliases": [
       "IFEO debugger",
       "Image hijack"
@@ -7317,7 +7317,7 @@
     ],
     "metasploit_modules": [],
     "kev": false,
-    "remediation_brief": "Audit IFEO registry entries: reg query \"HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options\" /s /v Debugger. Remove any unauthorized Debugger values. Deploy Sysmon with registry monitoring (Event IDs 12-14) targeting IFEO keys. Legitimate IFEO uses include application compatibility shims — verify with the application vendor before removing.",
+    "remediation_brief": "Audit IFEO registry entries: reg query \"HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options\" /s /v Debugger. Remove any unauthorized Debugger values. Deploy Sysmon with registry monitoring (Event IDs 12-14) targeting IFEO keys. Legitimate IFEO uses include application compatibility shims \u2014 verify with the application vendor before removing.",
     "remediation_component": "Configuration",
     "remediation_category": "Endpoint Security",
     "remediation_effort": "Easy",
@@ -7327,7 +7327,7 @@
   },
   {
     "id": "DR-PERS-005",
-    "title": "Accessibility Feature Binary Modified",
+    "title": "Persistence: Accessibility Feature Modified",
     "aliases": [
       "Sticky keys backdoor",
       "sethc.exe replacement",
@@ -7338,7 +7338,7 @@
     ],
     "risk": "CRITICAL",
     "description": "One or more Windows accessibility feature binaries (sethc.exe, utilman.exe, osk.exe, narrator.exe, magnify.exe, DisplaySwitch.exe) have been modified or replaced. The modification timestamp does not align with the OS installation date or last Windows Update, indicating potential tampering.",
-    "impact": "Replacing accessibility binaries with cmd.exe or a backdoor is a classic persistence technique that provides SYSTEM-level command prompt access from the Windows login screen — before any user has authenticated. An attacker can press Shift five times (sethc.exe), Win+U (utilman.exe), or similar shortcuts to trigger the backdoor. This survives reboots, user password changes, and most remediation attempts short of restoring the original binaries.",
+    "impact": "Replacing accessibility binaries with cmd.exe or a backdoor is a classic persistence technique that provides SYSTEM-level command prompt access from the Windows login screen \u2014 before any user has authenticated. An attacker can press Shift five times (sethc.exe), Win+U (utilman.exe), or similar shortcuts to trigger the backdoor. This survives reboots, user password changes, and most remediation attempts short of restoring the original binaries.",
     "cwe": [
       "CWE-506"
     ],
@@ -7406,7 +7406,7 @@
       "post/windows/manage/sticky_keys"
     ],
     "kev": false,
-    "remediation_brief": "Restore original accessibility binaries from a known-good source or Windows installation media: sfc /scannow or DISM /Online /Cleanup-Image /RestoreHealth. Verify file hashes against Microsoft published hashes. Investigate as a potential compromise — this finding indicates the system may have been backdoored. Deploy file integrity monitoring on %SystemRoot%\\System32\\sethc.exe, utilman.exe, osk.exe, narrator.exe, magnify.exe, DisplaySwitch.exe.",
+    "remediation_brief": "Restore original accessibility binaries from a known-good source or Windows installation media: sfc /scannow or DISM /Online /Cleanup-Image /RestoreHealth. Verify file hashes against Microsoft published hashes. Investigate as a potential compromise \u2014 this finding indicates the system may have been backdoored. Deploy file integrity monitoring on %SystemRoot%\\System32\\sethc.exe, utilman.exe, osk.exe, narrator.exe, magnify.exe, DisplaySwitch.exe.",
     "remediation_component": "Application",
     "remediation_category": "Endpoint Security",
     "remediation_effort": "Easy",
@@ -7416,7 +7416,7 @@
   },
   {
     "id": "DR-PERS-006",
-    "title": "Print Monitor DLL Persistence",
+    "title": "Persistence: Print Monitor DLL",
     "aliases": [
       "Print monitor persistence",
       "Port monitor DLL"
@@ -7426,7 +7426,7 @@
     ],
     "risk": "MEDIUM",
     "description": "Custom print monitor DLLs were found registered in the system. Print monitors are loaded by the Print Spooler service (spoolsv.exe) which runs as SYSTEM. An unauthorized print monitor DLL provides persistent, SYSTEM-level code execution.",
-    "impact": "Print monitor DLLs are loaded by the spoolsv.exe service at startup and run with SYSTEM privileges. An attacker who registers a malicious DLL as a print monitor achieves persistence that survives reboots and is difficult to detect — the DLL appears as a legitimate print subsystem component. This technique is used by APT groups for long-term persistence.",
+    "impact": "Print monitor DLLs are loaded by the spoolsv.exe service at startup and run with SYSTEM privileges. An attacker who registers a malicious DLL as a print monitor achieves persistence that survives reboots and is difficult to detect \u2014 the DLL appears as a legitimate print subsystem component. This technique is used by APT groups for long-term persistence.",
     "cwe": [
       "CWE-427"
     ],
@@ -7488,7 +7488,7 @@
   },
   {
     "id": "DR-PERS-008",
-    "title": "LSA Authentication Package Modified",
+    "title": "Persistence: LSA Authentication Package Modified",
     "aliases": [
       "LSA authentication package",
       "Security support provider"
@@ -7572,7 +7572,7 @@
   },
   {
     "id": "DR-ADCS-001",
-    "title": "ESC1 - Misconfigured Certificate Template",
+    "title": "ADCS: ESC1 - Misconfigured Certificate Template",
     "aliases": [
       "ADCS ESC1",
       "Certificate template SAN abuse",
@@ -7659,7 +7659,7 @@
   },
   {
     "id": "DR-ADCS-002",
-    "title": "ESC2 - Overly Permissive Template",
+    "title": "ADCS: ESC2 - Overly Permissive Template",
     "aliases": [
       "ADCS ESC2",
       "Any Purpose EKU",
@@ -7740,7 +7740,7 @@
   },
   {
     "id": "DR-ADCS-003",
-    "title": "ESC3 - Enrollment Agent Template",
+    "title": "ADCS: ESC3 - Enrollment Agent Template",
     "aliases": [
       "ADCS ESC3",
       "Certificate Request Agent",
@@ -7822,7 +7822,7 @@
   },
   {
     "id": "DR-ADCS-004",
-    "title": "ESC4 - Vulnerable Template ACL",
+    "title": "ADCS: ESC4 - Vulnerable Template ACL",
     "aliases": [
       "ADCS ESC4",
       "Certificate template WriteDACL",
@@ -7903,7 +7903,7 @@
   },
   {
     "id": "DR-ADCS-005",
-    "title": "ESC6 - EDITF_ATTRIBUTESUBJECTALTNAME2 Flag Set",
+    "title": "ADCS: ESC6 - EDITF_ATTRIBUTESUBJECTALTNAME2",
     "aliases": [
       "ADCS ESC6",
       "CA SAN override",
@@ -7914,7 +7914,7 @@
     ],
     "risk": "CRITICAL",
     "description": "The Certificate Authority has the EDITF_ATTRIBUTESUBJECTALTNAME2 flag enabled. This CA-level configuration allows ANY certificate requester to specify an arbitrary Subject Alternative Name (SAN) in their request, regardless of template settings. This effectively makes every authentication template on this CA vulnerable to ESC1.",
-    "impact": "With this flag enabled, any domain user who can enroll in any template with an authentication EKU can specify an arbitrary SAN, impersonating any user in the domain including Domain Admins. This is a CA-wide misconfiguration that bypasses per-template SAN controls — fixing individual templates does not mitigate this issue. A single CA with this flag compromises the entire domain.",
+    "impact": "With this flag enabled, any domain user who can enroll in any template with an authentication EKU can specify an arbitrary SAN, impersonating any user in the domain including Domain Admins. This is a CA-wide misconfiguration that bypasses per-template SAN controls \u2014 fixing individual templates does not mitigate this issue. A single CA with this flag compromises the entire domain.",
     "cwe": [
       "CWE-295"
     ],
@@ -7979,7 +7979,7 @@
     ],
     "metasploit_modules": [],
     "kev": false,
-    "remediation_brief": "Disable the EDITF_ATTRIBUTESUBJECTALTNAME2 flag on the CA: certutil -config \"CA\\CAName\" -setreg policy\\EditFlags -EDITF_ATTRIBUTESUBJECTALTNAME2. Restart the CA service: net stop certsvc && net start certsvc. Verify: certutil -config \"CA\\CAName\" -getreg policy\\EditFlags — the output should NOT include EDITF_ATTRIBUTESUBJECTALTNAME2. After disabling, audit all recently issued certificates for suspicious SAN values.",
+    "remediation_brief": "Disable the EDITF_ATTRIBUTESUBJECTALTNAME2 flag on the CA: certutil -config \"CA\\CAName\" -setreg policy\\EditFlags -EDITF_ATTRIBUTESUBJECTALTNAME2. Restart the CA service: net stop certsvc && net start certsvc. Verify: certutil -config \"CA\\CAName\" -getreg policy\\EditFlags \u2014 the output should NOT include EDITF_ATTRIBUTESUBJECTALTNAME2. After disabling, audit all recently issued certificates for suspicious SAN values.",
     "remediation_component": "Configuration",
     "remediation_category": "Active Directory",
     "remediation_effort": "Easy",
@@ -7990,7 +7990,7 @@
   },
   {
     "id": "DR-ADCS-006",
-    "title": "ESC8 - NTLM Relay to HTTP Enrollment",
+    "title": "ADCS: ESC8 - NTLM Relay to HTTP Enrollment",
     "aliases": [
       "ADCS ESC8",
       "ADCS HTTP enrollment relay",
@@ -8075,7 +8075,7 @@
   },
   {
     "id": "DR-HDN-026",
-    "title": "Application Whitelisting Not Configured",
+    "title": "Endpoint Protection: Application Whitelisting Not Configured",
     "aliases": [
       "No AppLocker",
       "No WDAC",
@@ -8150,7 +8150,7 @@
   },
   {
     "id": "DR-HDN-027",
-    "title": "Hypervisor Code Integrity Not Enabled",
+    "title": "System Hardening: HVCI Not Enabled",
     "aliases": [
       "HVCI disabled",
       "Memory integrity off",
@@ -8223,7 +8223,7 @@
   },
   {
     "id": "DR-HDN-028",
-    "title": "CredSSP Delegation Enabled",
+    "title": "System Hardening: CredSSP Delegation Enabled",
     "aliases": [
       "CredSSP",
       "Credential delegation",
@@ -8305,7 +8305,7 @@
   },
   {
     "id": "DR-HDN-029",
-    "title": "AMSI Provider Not Registered",
+    "title": "Endpoint Protection: AMSI Not Registered",
     "aliases": [
       "AMSI disabled",
       "Antimalware Scan Interface missing"
@@ -8379,7 +8379,7 @@
   },
   {
     "id": "DR-HDN-030",
-    "title": ".NET Framework v2/v3.5 Installed",
+    "title": "System Hardening: .NET Framework v2/v3.5 Installed",
     "aliases": [
       ".NET 2.0 installed",
       ".NET 3.5 legacy",
@@ -8447,7 +8447,7 @@
   },
   {
     "id": "DR-HDN-031",
-    "title": "PowerShell Constrained Language Mode Not Enforced",
+    "title": "System Hardening: PS Constrained Language Not Enforced",
     "aliases": [
       "CLM not configured",
       "PowerShell language mode"
@@ -8510,7 +8510,7 @@
     "searchsploit_terms": [],
     "metasploit_modules": [],
     "kev": false,
-    "remediation_brief": "Enforce Constrained Language Mode via WDAC/AppLocker code integrity policies (the most robust method — CLM activates automatically when UMCI is enforced). Alternatively, set the __PSLockdownPolicy environment variable to 4 (system-wide), though this is less robust than WDAC enforcement. Test with administrative scripts first — CLM restricts .NET and COM access that some admin scripts require.",
+    "remediation_brief": "Enforce Constrained Language Mode via WDAC/AppLocker code integrity policies (the most robust method \u2014 CLM activates automatically when UMCI is enforced). Alternatively, set the __PSLockdownPolicy environment variable to 4 (system-wide), though this is less robust than WDAC enforcement. Test with administrative scripts first \u2014 CLM restricts .NET and COM access that some admin scripts require.",
     "remediation_component": "Configuration",
     "remediation_category": "Endpoint Security",
     "remediation_effort": "Significant",
@@ -8520,7 +8520,7 @@
   },
   {
     "id": "DR-HDN-032",
-    "title": "Attack Surface Reduction Rules Not Configured",
+    "title": "System Hardening: ASR Rules Not Configured",
     "aliases": [
       "ASR rules disabled",
       "Defender ASR not enabled"
@@ -8596,7 +8596,7 @@
   },
   {
     "id": "DR-HDN-033",
-    "title": "Controlled Folder Access Not Enabled",
+    "title": "Endpoint Protection: Controlled Folder Access Not Enabled",
     "aliases": [
       "CFA disabled",
       "Ransomware protection off"
@@ -8660,7 +8660,7 @@
   },
   {
     "id": "DR-HDN-034",
-    "title": "Network Protection Not Enabled",
+    "title": "Endpoint Protection: Network Protection Not Enabled",
     "aliases": [
       "Defender Network Protection off",
       "Web content filtering disabled"
@@ -8728,7 +8728,7 @@
   },
   {
     "id": "DR-HDN-035",
-    "title": "Exploit Protection Not Configured",
+    "title": "Endpoint Protection: Exploit Protection Not Configured",
     "aliases": [
       "EMET not configured",
       "Windows exploit mitigations disabled"
@@ -8802,7 +8802,7 @@
   },
   {
     "id": "DR-AD-011",
-    "title": "LAPS Not Deployed",
+    "title": "Active Directory: LAPS Not Deployed",
     "aliases": [
       "Local Administrator Password Solution missing",
       "No LAPS",
@@ -8885,7 +8885,7 @@
   },
   {
     "id": "DR-AD-012",
-    "title": "krbtgt Key Not Rotated",
+    "title": "Active Directory: krbtgt Key Not Rotated",
     "aliases": [
       "Stale krbtgt key",
       "krbtgt password age"
@@ -8895,7 +8895,7 @@
     ],
     "risk": "MEDIUM",
     "description": "The krbtgt account password has not been changed in an extended period (typically 180+ days). The krbtgt account is used to encrypt all Kerberos Ticket Granting Tickets (TGTs) in the domain. If its key material is compromised, an attacker can forge Golden Tickets.",
-    "impact": "A compromised krbtgt key enables Golden Ticket attacks, granting the attacker unrestricted access to any resource in the domain for the lifetime of the key. Kerberos maintains two most-recent krbtgt key versions — rotating the password invalidates the oldest one. Microsoft recommends rotating the krbtgt password at least every 180 days, and immediately after any suspected domain compromise.",
+    "impact": "A compromised krbtgt key enables Golden Ticket attacks, granting the attacker unrestricted access to any resource in the domain for the lifetime of the key. Kerberos maintains two most-recent krbtgt key versions \u2014 rotating the password invalidates the oldest one. Microsoft recommends rotating the krbtgt password at least every 180 days, and immediately after any suspected domain compromise.",
     "cwe": [
       "CWE-324"
     ],
@@ -8950,7 +8950,7 @@
     ],
     "metasploit_modules": [],
     "kev": false,
-    "remediation_brief": "Rotate the krbtgt password using the Microsoft krbtgt reset script or manually via PowerShell (Reset-KrbtgtPassword). IMPORTANT: The krbtgt password must be reset TWICE (with a sufficient interval between resets, at least equal to the maximum ticket lifetime — typically 10 hours) to invalidate all existing TGTs. Schedule regular rotation every 180 days. After a suspected compromise, reset immediately (twice).",
+    "remediation_brief": "Rotate the krbtgt password using the Microsoft krbtgt reset script or manually via PowerShell (Reset-KrbtgtPassword). IMPORTANT: The krbtgt password must be reset TWICE (with a sufficient interval between resets, at least equal to the maximum ticket lifetime \u2014 typically 10 hours) to invalidate all existing TGTs. Schedule regular rotation every 180 days. After a suspected compromise, reset immediately (twice).",
     "remediation_component": "Access Control",
     "remediation_category": "Active Directory",
     "remediation_effort": "Moderate",
@@ -8960,7 +8960,7 @@
   },
   {
     "id": "DR-AD-013",
-    "title": "Stale Domain Accounts",
+    "title": "Account Management: Stale Domain Accounts",
     "aliases": [
       "Inactive domain accounts",
       "Dormant AD accounts"
@@ -8970,7 +8970,7 @@
     ],
     "risk": "LOW",
     "description": "Domain user accounts were found that have not logged in for an extended period (90+ days) and are still enabled. Stale accounts represent dormant attack surface that attackers can target without triggering alerts tied to active users.",
-    "impact": "Stale accounts are attractive targets for attackers because their compromise is less likely to be noticed — no legitimate user will report unexpected activity. These accounts may retain their original (potentially weak) passwords, group memberships, and access permissions. If any stale account has privileged access, it presents an unmonitored path to escalation.",
+    "impact": "Stale accounts are attractive targets for attackers because their compromise is less likely to be noticed \u2014 no legitimate user will report unexpected activity. These accounts may retain their original (potentially weak) passwords, group memberships, and access permissions. If any stale account has privileged access, it presents an unmonitored path to escalation.",
     "cwe": [
       "CWE-672"
     ],
@@ -9037,7 +9037,7 @@
   },
   {
     "id": "DR-AD-014",
-    "title": "SID History Abuse Risk",
+    "title": "Active Directory: SID History Abuse Risk",
     "aliases": [
       "SID History populated",
       "SID History injection"
@@ -9115,7 +9115,7 @@
   },
   {
     "id": "DR-SYS-011",
-    "title": "Sysmon Not Installed",
+    "title": "Monitoring: Sysmon Not Installed",
     "aliases": [
       "System Monitor missing",
       "No Sysmon",
@@ -9189,7 +9189,7 @@
   },
   {
     "id": "DR-SYS-012",
-    "title": "PrintNightmare Vulnerable Configuration",
+    "title": "Service Hardening: PrintNightmare Vulnerable",
     "aliases": [
       "PrintNightmare",
       "CVE-2021-34527",
@@ -9279,7 +9279,7 @@
   },
   {
     "id": "DR-SYS-013",
-    "title": "DNS Zone Transfer Allowed",
+    "title": "Network Hardening: DNS Zone Transfer Allowed",
     "aliases": [
       "AXFR enabled",
       "DNS zone transfer",

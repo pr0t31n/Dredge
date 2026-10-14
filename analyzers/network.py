@@ -53,7 +53,7 @@ class NetworkAnalyzer(BaseAnalyzer):
             output = "\n".join(suspicious[:20])
             self._add_finding(
                 "DR-NET-001",
-                "Suspicious Outbound Connection Detected",
+                "Network: Suspicious Outbound Connection",
                 "HIGH",
                 f"{len(suspicious)} active connection(s) to known malicious or "
                 f"suspicious IP addresses were detected. These addresses appear in "
@@ -108,7 +108,7 @@ class NetworkAnalyzer(BaseAnalyzer):
             port_list = ", ".join(found[:15])
             self._add_finding(
                 "DR-NET-002",
-                "High-Risk Port Exposed",
+                "Network: High-Risk Port Exposed",
                 "MEDIUM",
                 f"The following high-risk ports are open and listening: {port_list}. "
                 f"These ports correspond to services commonly targeted during "
@@ -155,7 +155,7 @@ class NetworkAnalyzer(BaseAnalyzer):
             output = "\n".join(parts)
             self._add_finding(
                 "DR-NET-003",
-                "System Proxy Configured",
+                "Network: Proxy Configured",
                 "MEDIUM",
                 f"A system-wide proxy is configured: {proxy_server or auto_config}. "
                 f"All HTTP/HTTPS traffic may be routed through this proxy server, "
@@ -203,7 +203,7 @@ class NetworkAnalyzer(BaseAnalyzer):
         desc_qualifier = "All" if all_external else "Some"
         self._add_finding(
             "DR-NET-004",
-            "DNS Pointing to External Servers on Domain-Joined System",
+            "Network: External DNS on Domain Host",
             risk,
             f"{desc_qualifier} DNS servers on this domain-joined system ({domain}) "
             f"are public external resolvers: {', '.join(external)}. Domain-joined "

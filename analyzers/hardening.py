@@ -43,7 +43,7 @@ class HardeningAnalyzer(BaseAnalyzer):
         enable_lua = self._reg("EnableLUA")
         if enable_lua is not None and int(enable_lua) != 1:
             self._add_finding(
-                "DR-HDN-001", "UAC Disabled", "HIGH",
+                "DR-HDN-001", "System Hardening: UAC Disabled", "HIGH",
                 "User Account Control (UAC) is disabled. All processes run with "
                 "full administrator privileges without prompting.",
                 "With UAC disabled, malware and unauthorized software can execute "
@@ -59,7 +59,7 @@ class HardeningAnalyzer(BaseAnalyzer):
         consent = self._reg("ConsentPromptBehaviorAdmin")
         if consent is not None and int(consent) < 2:
             self._add_finding(
-                "DR-HDN-002", "UAC Prompt Behavior Weak", "MEDIUM",
+                "DR-HDN-002", "System Hardening: UAC Prompt Behavior Weak", "MEDIUM",
                 f"UAC consent prompt behavior for administrators is set to {consent} "
                 f"(auto-elevate without prompting), weakening UAC protections.",
                 "A weak UAC prompt allows silent elevation of privileges, enabling "
@@ -74,7 +74,7 @@ class HardeningAnalyzer(BaseAnalyzer):
         smb1 = self._reg("SMB1")
         if smb1 is not None and int(smb1) != 0:
             self._add_finding(
-                "DR-HDN-003", "SMBv1 Protocol Enabled", "MEDIUM",
+                "DR-HDN-003", "Network Hardening: SMBv1 Protocol Enabled", "MEDIUM",
                 "SMBv1 is enabled on this system. SMBv1 has known vulnerabilities "
                 "including EternalBlue (MS17-010).",
                 "SMBv1 is vulnerable to multiple remote code execution attacks. "
@@ -92,7 +92,7 @@ class HardeningAnalyzer(BaseAnalyzer):
         signing = self._reg("RequireSecuritySignature")
         if signing is not None and int(signing) != 1:
             self._add_finding(
-                "DR-HDN-004", "SMB Signing Not Required", "MEDIUM",
+                "DR-HDN-004", "System Hardening: SMB Signing Not Required", "MEDIUM",
                 "SMB signing is not required, allowing potential man-in-the-middle "
                 "attacks on SMB connections.",
                 "Without required SMB signing, an attacker on the local network can "
@@ -110,7 +110,7 @@ class HardeningAnalyzer(BaseAnalyzer):
         lm_compat = self._reg("LmCompatibilityLevel")
         if lm_compat is not None and int(lm_compat) < 3:
             self._add_finding(
-                "DR-HDN-005", "NTLMv1 Authentication Allowed", "HIGH",
+                "DR-HDN-005", "Authentication: NTLMv1 Authentication Allowed", "HIGH",
                 f"LmCompatibilityLevel is set to {lm_compat}, allowing NTLMv1 "
                 f"authentication. NTLMv1 hashes can be cracked trivially.",
                 "NTLMv1 responses can be cracked in seconds using rainbow tables. "
@@ -125,7 +125,7 @@ class HardeningAnalyzer(BaseAnalyzer):
         no_lm = self._reg("NoLMHash")
         if no_lm is not None and int(no_lm) != 1:
             self._add_finding(
-                "DR-HDN-006", "LM Password Hashes Stored", "HIGH",
+                "DR-HDN-006", "Authentication: LM Password Hashes Stored", "HIGH",
                 "The system stores LAN Manager password hashes, which are trivially "
                 "crackable (split into two 7-character DES keys).",
                 "LM hashes can be cracked in minutes regardless of password "
@@ -141,7 +141,7 @@ class HardeningAnalyzer(BaseAnalyzer):
         wdigest = self._reg("UseLogonCredential")
         if wdigest is not None and int(wdigest) == 1:
             self._add_finding(
-                "DR-HDN-008", "WDigest Plaintext Credentials Enabled", "CRITICAL",
+                "DR-HDN-008", "Credential Exposure: WDigest Plaintext Credentials", "CRITICAL",
                 "WDigest authentication stores plaintext credentials in LSASS "
                 "memory, allowing extraction with tools like Mimikatz.",
                 "An attacker with local admin access can dump plaintext passwords "
@@ -159,7 +159,7 @@ class HardeningAnalyzer(BaseAnalyzer):
         ppl = self._reg("RunAsPPL")
         if ppl is not None and int(ppl) != 1:
             self._add_finding(
-                "DR-HDN-009", "LSA Protection Not Enabled", "HIGH",
+                "DR-HDN-009", "System Hardening: LSA Protection Not Enabled", "HIGH",
                 "LSA Protection (RunAsPPL) is not enabled. LSASS process is not "
                 "protected from code injection and memory dumping.",
                 "Without LSA Protection, credential-dumping tools can freely read "
@@ -176,7 +176,7 @@ class HardeningAnalyzer(BaseAnalyzer):
         vbs = self._reg("EnableVirtualizationBasedSecurity")
         if vbs is not None and int(vbs) != 1:
             self._add_finding(
-                "DR-HDN-010", "Credential Guard Not Enabled", "MEDIUM",
+                "DR-HDN-010", "System Hardening: Credential Guard Not Enabled", "MEDIUM",
                 "Virtualization-Based Security (Credential Guard) is not enabled. "
                 "Derived credentials are not isolated from the OS.",
                 "Without Credential Guard, NTLM hashes and Kerberos tickets in "
@@ -192,7 +192,7 @@ class HardeningAnalyzer(BaseAnalyzer):
         autorun = self._reg("NoDriveTypeAutoRun")
         if autorun is not None and int(autorun) != 255:
             self._add_finding(
-                "DR-HDN-007", "AutoRun Enabled", "MEDIUM",
+                "DR-HDN-007", "System Hardening: AutoRun Enabled", "MEDIUM",
                 f"AutoRun is not fully disabled (NoDriveTypeAutoRun={autorun}). "
                 f"Removable media can automatically execute code on insertion.",
                 "An attacker can craft a USB drive or CD that auto-executes malware "
@@ -209,7 +209,7 @@ class HardeningAnalyzer(BaseAnalyzer):
         llmnr = self._reg("EnableMulticast")
         if llmnr is None or int(llmnr) != 0:
             self._add_finding(
-                "DR-HDN-011", "LLMNR Enabled", "MEDIUM",
+                "DR-HDN-011", "Network Hardening: LLMNR Enabled", "HIGH",
                 "Link-Local Multicast Name Resolution (LLMNR) is enabled, allowing "
                 "name resolution poisoning attacks on the local network.",
                 "An attacker can respond to LLMNR queries to redirect traffic and "
@@ -231,7 +231,7 @@ class HardeningAnalyzer(BaseAnalyzer):
             wpad_disabled = features.get("wpad_disabled", False)
             if not wpad_disabled:
                 self._add_finding(
-                    "DR-HDN-012", "WPAD Enabled", "MEDIUM",
+                    "DR-HDN-012", "Network Hardening: WPAD Enabled", "MEDIUM",
                     "Web Proxy Auto-Discovery (WPAD) is not disabled. The system "
                     "may automatically configure proxy settings from the network.",
                     "An attacker can exploit WPAD to redirect all HTTP traffic "
@@ -249,7 +249,7 @@ class HardeningAnalyzer(BaseAnalyzer):
         sb_log = self._reg("ScriptBlockLogging")
         if sb_log is not None and int(sb_log) != 1:
             self._add_finding(
-                "DR-HDN-013", "PowerShell Script Block Logging Disabled", "MEDIUM",
+                "DR-HDN-013", "Monitoring: PowerShell Script Block Logging Disabled", "MEDIUM",
                 "PowerShell Script Block Logging is not enabled. Executed scripts "
                 "are not recorded in the event log.",
                 "Without script block logging, malicious PowerShell commands "
@@ -265,7 +265,7 @@ class HardeningAnalyzer(BaseAnalyzer):
         mod_log = self._reg("ModuleLogging")
         if mod_log is not None and int(mod_log) != 1:
             self._add_finding(
-                "DR-HDN-014", "PowerShell Module Logging Disabled", "LOW",
+                "DR-HDN-014", "Monitoring: PowerShell Module Logging Disabled", "LOW",
                 "PowerShell Module Logging is not enabled. Module execution events "
                 "are not recorded.",
                 "Module logging provides visibility into which PowerShell modules "
@@ -277,7 +277,7 @@ class HardeningAnalyzer(BaseAnalyzer):
         transcription = self._reg("Transcription")
         if transcription is not None and int(transcription) != 1:
             self._add_finding(
-                "DR-HDN-015", "PowerShell Transcription Disabled", "LOW",
+                "DR-HDN-015", "Monitoring: PowerShell Transcription Disabled", "LOW",
                 "PowerShell transcription is not enabled. Console input and output "
                 "are not being captured to transcript files.",
                 "Transcription captures the full input/output of every PowerShell "
@@ -292,7 +292,7 @@ class HardeningAnalyzer(BaseAnalyzer):
         ps_v2 = features.get("powershell_v2_available", None)
         if ps_v2 is True:
             self._add_finding(
-                "DR-HDN-016", "PowerShell v2 Engine Available", "MEDIUM",
+                "DR-HDN-016", "System Hardening: PowerShell v2 Engine Available", "MEDIUM",
                 "The PowerShell v2 engine is available on this system. Attackers "
                 "can use -Version 2 to bypass modern logging and AMSI.",
                 "PowerShell v2 does not support Script Block Logging, Module "
@@ -310,7 +310,7 @@ class HardeningAnalyzer(BaseAnalyzer):
         disabled = defender.get("defender_disabled", None)
         if disabled is True:
             self._add_finding(
-                "DR-HDN-017", "Windows Defender Disabled", "HIGH",
+                "DR-HDN-017", "Endpoint Protection: Windows Defender Disabled", "HIGH",
                 "Windows Defender antimalware is disabled on this system.",
                 "Without active antimalware protection, the system has no "
                 "defense against known malware, ransomware, and commodity "
@@ -325,7 +325,7 @@ class HardeningAnalyzer(BaseAnalyzer):
         if isinstance(exclusions, list) and len(exclusions) > 0:
             exc_list = "\n".join(str(e) for e in exclusions[:10])
             self._add_finding(
-                "DR-HDN-018", "Windows Defender Exclusions Present", "MEDIUM",
+                "DR-HDN-018", "Endpoint Protection: Defender Exclusions Present", "MEDIUM",
                 f"Windows Defender has {len(exclusions)} exclusion(s) configured. "
                 f"Excluded paths, processes, or extensions bypass scanning.",
                 "Attackers commonly drop malware in excluded paths. Excessive "
@@ -341,7 +341,7 @@ class HardeningAnalyzer(BaseAnalyzer):
         rtp = defender.get("real_time_protection", None)
         if rtp is False:
             self._add_finding(
-                "DR-HDN-019", "Windows Defender Real-Time Protection Off", "HIGH",
+                "DR-HDN-019", "Endpoint Protection: Defender Real-Time Protection Off", "HIGH",
                 "Windows Defender real-time protection is disabled. Files are not "
                 "scanned on access.",
                 "Without real-time protection, malware can execute without being "
@@ -358,7 +358,7 @@ class HardeningAnalyzer(BaseAnalyzer):
             rdp_enabled = self._reg("fDenyTSConnections")
             if rdp_enabled is not None and int(rdp_enabled) == 0:
                 self._add_finding(
-                    "DR-HDN-020", "Remote Desktop Without NLA", "HIGH",
+                    "DR-HDN-020", "Remote Desktop: RDP Without NLA", "HIGH",
                     "Remote Desktop is enabled without Network Level Authentication "
                     "(NLA). Users can reach the login screen without authenticating.",
                     "Without NLA, attackers can interact with the RDP login screen "
@@ -377,7 +377,7 @@ class HardeningAnalyzer(BaseAnalyzer):
         dep = self._reg("nx_policy")
         if dep is not None and str(dep) not in ("3", "AlwaysOn"):
             self._add_finding(
-                "DR-HDN-021", "DEP Not Enabled System-Wide", "MEDIUM",
+                "DR-HDN-021", "System Hardening: DEP Not System-Wide", "MEDIUM",
                 f"Data Execution Prevention (DEP) is not set to AlwaysOn (current: "
                 f"{dep}). Some processes may execute code from non-executable memory.",
                 "Without system-wide DEP, buffer overflow exploits can execute "
@@ -394,7 +394,7 @@ class HardeningAnalyzer(BaseAnalyzer):
             pipe_list = pipes if isinstance(pipes, list) else [p.strip() for p in pipes.split(",") if p.strip()]
             if pipe_list:
                 self._add_finding(
-                    "DR-HDN-022", "Anonymous Access to Named Pipes", "HIGH",
+                    "DR-HDN-022", "Access Control: Anonymous Named Pipe Access", "HIGH",
                     f"The following named pipes are accessible anonymously: "
                     f"{', '.join(pipe_list)}.",
                     "Anonymous named pipe access can allow unauthenticated "
@@ -411,7 +411,7 @@ class HardeningAnalyzer(BaseAnalyzer):
         restrict = self._reg("RestrictAnonymous")
         if restrict is not None and int(restrict) == 0:
             self._add_finding(
-                "DR-HDN-023", "Null Session Access Allowed", "HIGH",
+                "DR-HDN-023", "Access Control: Null Session Access", "HIGH",
                 "Anonymous/null session access is permitted (RestrictAnonymous=0). "
                 "Unauthenticated users can enumerate shares, users, and groups.",
                 "Null session enumeration reveals user lists, group memberships, "
@@ -444,7 +444,7 @@ class HardeningAnalyzer(BaseAnalyzer):
                 insufficient.append(f"{policy}: {current or 'Not configured'}")
         if insufficient:
             self._add_finding(
-                "DR-HDN-024", "Audit Policy Insufficient", "MEDIUM",
+                "DR-HDN-024", "Policy: Audit Policy Insufficient", "MEDIUM",
                 f"{len(insufficient)} critical audit categories are not configured "
                 f"for both success and failure auditing.",
                 "Insufficient audit policy means security-relevant events are not "
@@ -475,7 +475,7 @@ class HardeningAnalyzer(BaseAnalyzer):
                     "allow remote code execution via the spooler."
                 )
                 self._add_finding(
-                    "DR-HDN-025", "Print Spooler Running on Server", risk,
+                    "DR-HDN-025", "Service Hardening: Print Spooler Running", risk,
                     desc,
                     "The Print Spooler service has been the target of multiple "
                     "critical vulnerabilities. On domain controllers, exploitation "
@@ -507,7 +507,7 @@ class HardeningAnalyzer(BaseAnalyzer):
         wdac = self._reg("WDAC")
         if applocker is None and wdac is None:
             self._add_finding(
-                "DR-HDN-026", "Application Whitelisting Not Configured", "MEDIUM",
+                "DR-HDN-026", "Endpoint Protection: Application Whitelisting Not Configured", "MEDIUM",
                 "Neither AppLocker nor Windows Defender Application Control (WDAC) "
                 "is configured on this system.",
                 "Without application whitelisting, any executable can run, including "
@@ -524,7 +524,7 @@ class HardeningAnalyzer(BaseAnalyzer):
         hvci = self._reg("HypervisorEnforcedCodeIntegrity")
         if hvci is not None and int(hvci) != 1:
             self._add_finding(
-                "DR-HDN-027", "Hypervisor Code Integrity Not Enabled", "MEDIUM",
+                "DR-HDN-027", "System Hardening: HVCI Not Enabled", "MEDIUM",
                 "Hypervisor-protected Code Integrity (HVCI) is not enabled.",
                 "Without HVCI, kernel-mode code integrity is enforced only by the "
                 "kernel itself, which can be bypassed by kernel exploits.",
@@ -539,7 +539,7 @@ class HardeningAnalyzer(BaseAnalyzer):
         allow_def = self._reg("AllowDefaultCredentials")
         if allow_def is not None and int(allow_def) == 1:
             self._add_finding(
-                "DR-HDN-028", "CredSSP Delegation Enabled", "MEDIUM",
+                "DR-HDN-028", "System Hardening: CredSSP Delegation Enabled", "MEDIUM",
                 "CredSSP credential delegation is enabled, allowing credentials "
                 "to be forwarded to remote servers.",
                 "CredSSP delegation exposes credentials to the remote host. If that "
@@ -555,7 +555,7 @@ class HardeningAnalyzer(BaseAnalyzer):
         providers = self._ps_cfg("amsi_providers")
         if isinstance(providers, list) and len(providers) == 0:
             self._add_finding(
-                "DR-HDN-029", "AMSI Provider Not Registered", "MEDIUM",
+                "DR-HDN-029", "Endpoint Protection: AMSI Not Registered", "MEDIUM",
                 "No Antimalware Scan Interface (AMSI) providers are registered.",
                 "Without AMSI, PowerShell scripts, VBScript, JScript, and other "
                 "AMSI-integrated components cannot be scanned for malicious content "
@@ -575,7 +575,7 @@ class HardeningAnalyzer(BaseAnalyzer):
         if legacy:
             ver_list = ", ".join(str(v.get("version", "")) for v in legacy[:5])
             self._add_finding(
-                "DR-HDN-030", ".NET Framework v2/v3.5 Installed", "LOW",
+                "DR-HDN-030", "System Hardening: .NET Framework v2/v3.5 Installed", "LOW",
                 f"Legacy .NET Framework versions are installed: {ver_list}. "
                 f"These older runtimes lack modern security mitigations.",
                 ".NET 2.0/3.5 can be abused to run PowerShell v2 and bypass "
@@ -592,7 +592,7 @@ class HardeningAnalyzer(BaseAnalyzer):
         lang_mode = self._ps_cfg("language_mode", "")
         if isinstance(lang_mode, str) and "FullLanguage" in lang_mode:
             self._add_finding(
-                "DR-HDN-031", "PowerShell Constrained Language Mode Not Enforced", "MEDIUM",
+                "DR-HDN-031", "System Hardening: PS Constrained Language Not Enforced", "MEDIUM",
                 "PowerShell is running in FullLanguage mode, allowing unrestricted "
                 "access to .NET types, COM objects, and all PowerShell features.",
                 "FullLanguage mode allows attackers to use PowerShell as a full-featured "
@@ -610,7 +610,7 @@ class HardeningAnalyzer(BaseAnalyzer):
         asr = self._defender("asr_rules")
         if asr is None or (isinstance(asr, dict) and not asr.get("ids")):
             self._add_finding(
-                "DR-HDN-032", "Attack Surface Reduction Rules Not Configured", "MEDIUM",
+                "DR-HDN-032", "System Hardening: ASR Rules Not Configured", "MEDIUM",
                 "No Attack Surface Reduction (ASR) rules are configured in "
                 "Windows Defender.",
                 "ASR rules block common attack techniques such as Office macro "
@@ -628,7 +628,7 @@ class HardeningAnalyzer(BaseAnalyzer):
         cfa = self._defender("controlled_folder_access")
         if isinstance(cfa, dict) and not cfa.get("enabled"):
             self._add_finding(
-                "DR-HDN-033", "Controlled Folder Access Not Enabled", "LOW",
+                "DR-HDN-033", "Endpoint Protection: Controlled Folder Access Not Enabled", "LOW",
                 "Windows Defender Controlled Folder Access is not enabled.",
                 "Controlled Folder Access protects documents and files from "
                 "unauthorized modification by ransomware and other malicious "
@@ -643,7 +643,7 @@ class HardeningAnalyzer(BaseAnalyzer):
         np = self._defender("network_protection")
         if np is not None and int(np) != 1:
             self._add_finding(
-                "DR-HDN-034", "Network Protection Not Enabled", "LOW",
+                "DR-HDN-034", "Endpoint Protection: Network Protection Not Enabled", "LOW",
                 "Windows Defender Network Protection is not enabled.",
                 "Network Protection blocks outbound connections to known malicious "
                 "domains and IP addresses, reducing the effectiveness of phishing "
@@ -658,7 +658,7 @@ class HardeningAnalyzer(BaseAnalyzer):
         ep = self._defender("exploit_protection")
         if ep is None or (isinstance(ep, dict) and not ep):
             self._add_finding(
-                "DR-HDN-035", "Exploit Protection Not Configured", "MEDIUM",
+                "DR-HDN-035", "Endpoint Protection: Exploit Protection Not Configured", "MEDIUM",
                 "Windows Exploit Protection (process mitigations) is not configured.",
                 "Exploit Protection provides mitigations such as DEP, ASLR, CFG, "
                 "and EAF at the per-process level. Without configuration, only "

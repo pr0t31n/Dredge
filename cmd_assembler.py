@@ -1295,14 +1295,16 @@ def _parse_sections(cmd_dir):
         line = line.strip()
         if not line:
             continue
-        parts = line.split(":", 1)
-        if len(parts) == 2:
-            name = parts[0].strip()
-            status = parts[1].strip().upper()
-            if status == "SUCCESS":
-                collected.append(name)
-            else:
-                failed.append(name)
+        for sep in ("=", ":"):
+            parts = line.split(sep, 1)
+            if len(parts) == 2:
+                name = parts[0].strip()
+                status = parts[1].strip().upper()
+                if status in ("OK", "SUCCESS"):
+                    collected.append(name)
+                else:
+                    failed.append(name)
+                break
     return collected, failed
 
 

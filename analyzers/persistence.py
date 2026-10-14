@@ -32,7 +32,7 @@ class PersistenceAnalyzer(BaseAnalyzer):
             command = sub.get("command_line_template",
                               sub.get("script_text", ""))
             self._add_finding(
-                "DR-PERS-001", "WMI Event Subscription Persistence", "HIGH",
+                "DR-PERS-001", "Persistence: WMI Event Subscription", "HIGH",
                 f"WMI event subscription detected: filter '{filter_name}' bound "
                 f"to consumer '{consumer_name}' ({consumer_type}). WMI "
                 f"subscriptions survive reboots and execute without user "
@@ -65,7 +65,7 @@ class PersistenceAnalyzer(BaseAnalyzer):
             hkcu_path = h.get("hkcu_dll", "")
             hklm_path = h.get("hklm_dll", "")
             self._add_finding(
-                "DR-PERS-002", "COM Object Hijacking Detected", "MEDIUM",
+                "DR-PERS-002", "Persistence: COM Object Hijacking", "MEDIUM",
                 f"COM object CLSID {clsid} has an HKCU InprocServer32 entry "
                 f"({hkcu_path}) that overrides the system HKLM entry "
                 f"({hklm_path}). This is a common persistence technique.",
@@ -94,7 +94,7 @@ class PersistenceAnalyzer(BaseAnalyzer):
         if not dll_value or not int(load_enabled):
             return
         self._add_finding(
-            "DR-PERS-003", "AppInit_DLLs Configured", "HIGH",
+            "DR-PERS-003", "Persistence: AppInit_DLLs Configured", "HIGH",
             f"AppInit_DLLs is configured with value '{dll_value}' and "
             f"LoadAppInit_DLLs is enabled. These DLLs are loaded into every "
             f"user-mode process that loads user32.dll.",
@@ -125,7 +125,7 @@ class PersistenceAnalyzer(BaseAnalyzer):
             debugger = entry.get("debugger", "Unknown")
             self._add_finding(
                 "DR-PERS-004",
-                "Image File Execution Options Debugger Set", "HIGH",
+                "Persistence: IFEO Debugger Set", "HIGH",
                 f"IFEO debugger set for '{target}': the debugger '{debugger}' "
                 f"will execute instead of (or before) the target binary. This "
                 f"is a known persistence and defense evasion technique.",
@@ -159,7 +159,7 @@ class PersistenceAnalyzer(BaseAnalyzer):
             os_install = binary.get("os_install_date", "")
             self._add_finding(
                 "DR-PERS-005",
-                "Accessibility Feature Binary Modified", "CRITICAL",
+                "Persistence: Accessibility Feature Modified", "CRITICAL",
                 f"Accessibility binary '{name}' has a modification timestamp "
                 f"({mod_time}) that differs from the OS installation date "
                 f"({os_install}). This may indicate binary replacement for "
@@ -201,7 +201,7 @@ class PersistenceAnalyzer(BaseAnalyzer):
             name = mon.get("name", "Unknown")
             dll = mon.get("dll", "Unknown")
             self._add_finding(
-                "DR-PERS-006", "Print Monitor DLL Persistence", "MEDIUM",
+                "DR-PERS-006", "Persistence: Print Monitor DLL", "MEDIUM",
                 f"Non-standard print monitor '{name}' registered with DLL "
                 f"'{dll}'. Print monitor DLLs are loaded by the spooler "
                 f"service (SYSTEM) at startup.",
@@ -237,7 +237,7 @@ class PersistenceAnalyzer(BaseAnalyzer):
         if sysmon_found:
             return
         self._add_finding(
-            "DR-SYS-011", "Sysmon Not Installed", "MEDIUM",
+            "DR-SYS-011", "Monitoring: Sysmon Not Installed", "MEDIUM",
             "Sysmon (System Monitor) is not installed on this system. Sysmon "
             "provides detailed event logging for process creation, network "
             "connections, file changes, and registry modifications.",
@@ -286,7 +286,7 @@ class PersistenceAnalyzer(BaseAnalyzer):
         pkg_list = ", ".join(suspicious[:10])
         self._add_finding(
             "DR-PERS-008",
-            "LSA Authentication Package Modified", "HIGH",
+            "Persistence: LSA Authentication Package Modified", "HIGH",
             f"Non-default LSA package(s) detected: {pkg_list}. Custom LSA "
             f"packages can intercept all authentication events on the system.",
             "LSA authentication and notification packages are loaded by lsass.exe "

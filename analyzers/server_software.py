@@ -32,7 +32,7 @@ class ServerSoftwareAnalyzer(BaseAnalyzer):
             instance = sql.get("instance", "MSSQLSERVER")
             self._add_finding(
                 "DR-SRV-001",
-                "SQL Server Using Mixed Authentication Mode",
+                "Authentication: SQL Server Mixed Authentication",
                 "HIGH",
                 f"SQL Server instance '{instance}' (version {version}) is configured "
                 f"with mixed authentication mode, allowing both Windows and SQL "
@@ -82,7 +82,7 @@ class ServerSoftwareAnalyzer(BaseAnalyzer):
             iis_version = iis.get("version", "Unknown")
             self._add_finding(
                 "DR-SRV-002",
-                "IIS Running with Default Site",
+                "Service Hardening: IIS Default Site",
                 "MEDIUM",
                 f"IIS (version {iis_version}) is running with the default web site "
                 f"active. The default site exposes server information, may serve "
@@ -125,7 +125,7 @@ class ServerSoftwareAnalyzer(BaseAnalyzer):
             role_list = ", ".join(found_roles[:10])
             self._add_finding(
                 "DR-SRV-003",
-                "Unnecessary Server Roles Installed on Workstation",
+                "Service Hardening: Unnecessary Server Roles",
                 "MEDIUM",
                 f"The following server roles are installed on this workstation: "
                 f"{role_list}. Server roles on workstations expand the attack "
@@ -174,7 +174,7 @@ class ServerSoftwareAnalyzer(BaseAnalyzer):
             ws_list = ", ".join(web_servers[:5])
             self._add_finding(
                 "DR-SRV-004",
-                "Web Server Running on Endpoint Workstation",
+                "Service Hardening: Web Server on Workstation",
                 "MEDIUM",
                 f"A web server is running on this workstation: {ws_list}. "
                 f"Web servers on endpoints are often development installations "

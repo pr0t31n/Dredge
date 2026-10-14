@@ -46,7 +46,7 @@ class DiskStorageAnalyzer(BaseAnalyzer):
         if bad:
             self._add_finding(
                 "DR-DISK-001",
-                "Physical Disk Health Degraded",
+                "Storage: Physical Disk Health Degraded",
                 "HIGH",
                 f"{len(bad)} physical disk(s) are reporting a non-healthy status. "
                 "This may indicate imminent disk failure or an already-failed drive "
@@ -84,7 +84,7 @@ class DiskStorageAnalyzer(BaseAnalyzer):
         if bad:
             self._add_finding(
                 "DR-DISK-002",
-                "Storage Pool Health Degraded",
+                "Storage: Storage Pool Health Degraded",
                 "CRITICAL",
                 f"{len(bad)} storage pool(s) are in a degraded or unhealthy state. "
                 "This typically means one or more physical disks in the pool have "
@@ -125,7 +125,7 @@ class DiskStorageAnalyzer(BaseAnalyzer):
         if bad:
             self._add_finding(
                 "DR-DISK-003",
-                "Virtual Disk Not Healthy",
+                "Storage: Virtual Disk Not Healthy",
                 "HIGH",
                 f"{len(bad)} virtual disk(s) are reporting a degraded or unhealthy "
                 "status. Virtual disks in Storage Spaces represent the logical "
@@ -208,7 +208,7 @@ class DiskStorageAnalyzer(BaseAnalyzer):
             lines.extend(f"  • {r}" for r in at_risk)
             self._add_finding(
                 "DR-DISK-009",
-                "Disk Running Without Redundancy After Failure",
+                "Storage: Disk Without Redundancy After Failure",
                 "CRITICAL",
                 f"One or more storage pools are degraded and the virtual disks "
                 f"within them have exhausted their fault tolerance. "
@@ -252,7 +252,7 @@ class DiskStorageAnalyzer(BaseAnalyzer):
         if bad:
             self._add_finding(
                 "DR-DISK-010",
-                "Hardware RAID Virtual Drive Degraded",
+                "Storage: RAID Virtual Drive Degraded",
                 "CRITICAL",
                 f"{len(bad)} hardware RAID virtual drive(s) are in a non-optimal "
                 f"state as reported by {hw.get('detected_cli', 'the controller CLI')}. "
@@ -293,7 +293,7 @@ class DiskStorageAnalyzer(BaseAnalyzer):
             if len(phys) > 1:
                 self._add_finding(
                     "DR-DISK-004",
-                    "No Disk Redundancy Configured",
+                    "Storage: No Disk Redundancy Configured",
                     "MEDIUM",
                     "This server has multiple physical disks but no Storage Spaces "
                     "pools or RAID configuration was detected. Data is stored on "
@@ -321,7 +321,7 @@ class DiskStorageAnalyzer(BaseAnalyzer):
                 names = [v.get("friendly_name", "?") for v in vdisks if isinstance(v, dict)]
                 self._add_finding(
                     "DR-DISK-004",
-                    "No Disk Redundancy Configured",
+                    "Storage: No Disk Redundancy Configured",
                     "MEDIUM",
                     f"All {len(names)} virtual disk(s) use 'Simple' resiliency "
                     "(no redundancy). Data is striped across disks with no fault "
@@ -363,7 +363,7 @@ class DiskStorageAnalyzer(BaseAnalyzer):
         if critical:
             self._add_finding(
                 "DR-DISK-005",
-                "Disk Space Critical",
+                "Storage: Disk Space Critical",
                 "HIGH",
                 f"{len(critical)} drive(s) have less than 5% free space remaining. "
                 "Critically low disk space can cause system instability, service "
@@ -406,7 +406,7 @@ class DiskStorageAnalyzer(BaseAnalyzer):
         if low:
             self._add_finding(
                 "DR-DISK-006",
-                "Disk Space Low",
+                "Storage: Disk Space Low",
                 "MEDIUM",
                 f"{len(low)} drive(s) have between 5–15% free space remaining. "
                 "Low disk space is a precursor to service disruption.",
@@ -442,7 +442,7 @@ class DiskStorageAnalyzer(BaseAnalyzer):
         if failing:
             self._add_finding(
                 "DR-DISK-007",
-                "Physical Disk Predictive Failure",
+                "Storage: Physical Disk Predictive Failure",
                 "HIGH",
                 f"{len(failing)} physical disk(s) are reporting a predictive "
                 "failure, error, or degraded status via WMI. This indicates the "
@@ -477,7 +477,7 @@ class DiskStorageAnalyzer(BaseAnalyzer):
         if bad:
             self._add_finding(
                 "DR-DISK-008",
-                "RAID Controller Reporting Issues",
+                "Storage: RAID Controller Issues",
                 "MEDIUM",
                 f"{len(bad)} storage/RAID controller(s) are reporting a non-OK "
                 "status. Controller issues can affect all disks managed by that "
@@ -537,7 +537,7 @@ class DiskStorageAnalyzer(BaseAnalyzer):
         if critical_errors:
             self._add_finding(
                 "DR-DISK-011",
-                "Disk/Storage Errors in Event Logs",
+                "Storage: Disk Errors in Event Logs",
                 "HIGH",
                 f"{len(critical_errors)} critical disk or storage error event(s) "
                 "found in the Windows System event log (last 30 days). These "
@@ -562,7 +562,7 @@ class DiskStorageAnalyzer(BaseAnalyzer):
         if warnings and not critical_errors:
             self._add_finding(
                 "DR-DISK-012",
-                "Disk/Storage Warnings in Event Logs",
+                "Storage: Disk Warnings in Event Logs",
                 "MEDIUM",
                 f"{len(warnings)} disk or storage warning event(s) found in the "
                 "Windows System event log (last 30 days). These may indicate "

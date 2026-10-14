@@ -75,12 +75,13 @@ def _log(msg, level="INFO"):
         print(f"__CRUCIBLE_LOG__:{payload}", flush=True)
 
 
-def _status(phase, progress=0, detail=""):
+def _status(phase, progress=0, detail="", status="running"):
     if MANAGED:
         payload = json.dumps({
             "phase": phase,
+            "label": detail or phase,
+            "status": status,
             "progress": progress,
-            "detail": detail,
             "ts": datetime.now(timezone.utc).isoformat(),
         })
         print(f"__CRUCIBLE_STATUS__:{payload}", flush=True)
@@ -440,7 +441,7 @@ def main():
     if _pause is not None:
         _pause.write_stop_reason("completed", "all_phases_done")
 
-    _status("Complete", 100, f"{len(findings)} findings")
+    _status("Complete", 100, f"{len(findings)} findings", status="complete")
     _log(f"Analysis complete: {len(findings)} findings in {duration:.1f}s")
 
     # Summary to stderr

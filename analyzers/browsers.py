@@ -54,7 +54,7 @@ class BrowserAnalyzer(BaseAnalyzer):
             output = "\n".join(suspicious[:15])
             self._add_finding(
                 "DR-BRW-001",
-                f"Malicious Browser Extension Detected ({browser.title()})",
+                f"Browser: Malicious Extension Detected ({browser.title()})",
                 "HIGH",
                 f"{len(suspicious)} browser extension(s) in {browser.title()} "
                 f"match known malicious extensions in the threat intelligence "
@@ -86,7 +86,7 @@ class BrowserAnalyzer(BaseAnalyzer):
             output = "\n".join(unknown[:20])
             self._add_finding(
                 "DR-BRW-001",
-                f"Unrecognized Browser Extension ({browser.title()})",
+                f"Browser: Unrecognized Extension ({browser.title()})",
                 "LOW",
                 f"{len(unknown)} browser extension(s) in {browser.title()} are "
                 f"not recognized by the threat intelligence database. These may "
@@ -113,7 +113,7 @@ class BrowserAnalyzer(BaseAnalyzer):
         if isinstance(proxy, str) and proxy:
             self._add_finding(
                 "DR-BRW-002",
-                f"Browser Proxy Configured ({browser.title()})",
+                f"Browser: Proxy Configured ({browser.title()})",
                 "MEDIUM",
                 f"{browser.title()} is configured to use a proxy: {proxy}. "
                 f"This may intercept and inspect all browser traffic.",
@@ -153,7 +153,7 @@ class BrowserAnalyzer(BaseAnalyzer):
         output = f"Browser: {browser.title()}\n" + "\n".join(parts)
         self._add_finding(
             "DR-BRW-002",
-            f"Browser Proxy Configured ({browser.title()})",
+            f"Browser: Proxy Configured ({browser.title()})",
             "MEDIUM",
             f"{browser.title()} has a proxy configured at the browser level, "
             f"separate from system proxy settings. This proxy intercepts "
@@ -218,7 +218,7 @@ class BrowserAnalyzer(BaseAnalyzer):
         output = "\n".join(suspicious[:10])
         self._add_finding(
             "DR-BRW-003",
-            f"Suspicious Bookmark Detected ({browser.title()})",
+            f"Browser: Suspicious Bookmark ({browser.title()})",
             "MEDIUM",
             f"{len(suspicious)} bookmark(s) in {browser.title()} link to "
             f"domains or IPs associated with known malicious infrastructure "

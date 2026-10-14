@@ -75,7 +75,7 @@ class EventLogAnalyzer(BaseAnalyzer):
             total = sum(brute_sources.values())
             self._add_finding(
                 "DR-EVT-001",
-                "Brute Force Attack Detected",
+                "Event Log: Brute Force Attack Detected",
                 "HIGH",
                 f"Brute-force login activity detected from {len(brute_sources)} "
                 f"source(s) with a total of {total} failed authentication attempts "
@@ -120,7 +120,7 @@ class EventLogAnalyzer(BaseAnalyzer):
             output_lines = [f"{acct}: {cnt} lockout(s)" for acct, cnt in top]
             self._add_finding(
                 "DR-EVT-002",
-                "Account Lockouts Detected",
+                "Event Log: Account Lockouts Detected",
                 "MEDIUM",
                 f"{len(lockouts)} account lockout event(s) detected across "
                 f"{len(account_counts)} account(s). Repeated lockouts may indicate "
@@ -166,7 +166,7 @@ class EventLogAnalyzer(BaseAnalyzer):
             output = "\n".join(cleared[:10])
             self._add_finding(
                 "DR-EVT-003",
-                "Security Log Cleared — Evidence Tampering",
+                "Event Log: Security Log Cleared",
                 "CRITICAL",
                 f"{len(cleared)} event log clearing event(s) detected. Clearing "
                 f"security logs destroys forensic evidence and is a strong indicator "
@@ -222,7 +222,7 @@ class EventLogAnalyzer(BaseAnalyzer):
                 output += f"\n... and {len(suspicious) - 10} more"
             self._add_finding(
                 "DR-EVT-004",
-                "Suspicious PowerShell Activity in Event Logs",
+                "Event Log: Suspicious PowerShell Activity",
                 "HIGH",
                 f"{len(suspicious)} PowerShell event(s) contain suspicious patterns "
                 f"such as encoded commands, download cradles, AMSI bypass attempts, "
@@ -272,7 +272,7 @@ class EventLogAnalyzer(BaseAnalyzer):
             risk = "MEDIUM" if len(new_services) <= 3 else "HIGH"
             self._add_finding(
                 "DR-EVT-005",
-                "New Service Installations Detected",
+                "Event Log: New Service Installations",
                 risk,
                 f"{len(new_services)} new service installation(s) recorded in event "
                 f"logs. Service installations are a common persistence mechanism "
@@ -318,7 +318,7 @@ class EventLogAnalyzer(BaseAnalyzer):
             output = "\n".join(created_users[:10])
             self._add_finding(
                 "DR-EVT-006",
-                "User Account Created",
+                "Event Log: User Account Created",
                 "MEDIUM",
                 f"{len(created_users)} user account creation event(s) detected in "
                 f"security event logs. Account creation outside of normal provisioning "

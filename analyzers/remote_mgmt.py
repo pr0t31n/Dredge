@@ -88,7 +88,7 @@ class RemoteManagementAnalyzer(BaseAnalyzer):
             tool_list = "\n".join(detected[:15])
             self._add_finding(
                 "DR-RMT-001",
-                "Unauthorized Remote Management Tool Detected",
+                "Remote Access: Unauthorized RMT Detected",
                 "HIGH",
                 f"{len(detected)} unauthorized remote management tool(s) detected on "
                 f"the system. These tools allow remote access to the endpoint and may "
@@ -138,7 +138,7 @@ class RemoteManagementAnalyzer(BaseAnalyzer):
         )
         self._add_finding(
             "DR-RMT-002",
-            "RDP Enabled",
+            "Remote Desktop: RDP Enabled",
             risk,
             desc, impact, remediation,
             output=f"RDP enabled: True\nPort: {port}\nNLA required: {nla}",
@@ -172,7 +172,7 @@ class RemoteManagementAnalyzer(BaseAnalyzer):
 
         self._add_finding(
             "DR-RMT-003",
-            "WinRM Service Running",
+            "Service Hardening: WinRM Running",
             risk,
             f"Windows Remote Management (WinRM) is running on this system "
             f"({config_note}). WinRM allows remote command execution via "
@@ -210,7 +210,7 @@ class RemoteManagementAnalyzer(BaseAnalyzer):
 
         self._add_finding(
             "DR-RMT-004",
-            "SSH Server Enabled",
+            "Service Hardening: SSH Server Enabled",
             risk,
             f"An SSH server (OpenSSH) is running on this Windows system (port {port}). "
             f"{auth_note} SSH on Windows endpoints is uncommon and may indicate "
@@ -258,7 +258,7 @@ class RemoteManagementAnalyzer(BaseAnalyzer):
             tool_list = ", ".join(active_tools[:10])
             self._add_finding(
                 "DR-RMT-005",
-                "Multiple Remote Management Tools Installed",
+                "Service Hardening: Multiple RMT Tools",
                 "MEDIUM",
                 f"{len(active_tools)} remote management tools or services are active "
                 f"on this system: {tool_list}. Multiple remote access vectors increase "

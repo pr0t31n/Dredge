@@ -181,6 +181,24 @@ class ThreatIntelChecker:
     def check_domain(self, domain):
         return {"is_known_bad": False}
 
+    def is_known_bad_ip(self, ip):
+        return is_known_bad_ip(ip)
+
+    def get_bad_ip_info(self, ip):
+        return get_bad_ip_info(ip)
+
+    def is_known_bad_process(self, name):
+        return is_known_bad_process(name)
+
+    def get_bad_process_info(self, name):
+        return get_bad_process_info(name)
+
+    def is_known_extension(self, browser, ext_id):
+        return is_known_extension(browser, ext_id)
+
+    def get_rmt_classification(self, name):
+        return get_rmt_classification(name)
+
     def stats(self):
         _ensure_processes()
         _ensure_ips()

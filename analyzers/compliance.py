@@ -30,7 +30,7 @@ class ComplianceAnalyzer(BaseAnalyzer):
             risk = "CRITICAL" if "Public" in disabled else "HIGH"
             self._add_finding(
                 "DR-CMP-001",
-                "Firewall Profile Disabled",
+                "Firewall: Profile Disabled",
                 risk,
                 f"The following Windows Firewall profile(s) are disabled: "
                 f"{profile_list}. This violates CIS Benchmark, STIG, and Microsoft "
@@ -77,7 +77,7 @@ class ComplianceAnalyzer(BaseAnalyzer):
         if not_configured:
             self._add_finding(
                 "DR-CMP-002",
-                "Screen Lock Timeout Not Configured",
+                "Policy: Screen Lock Timeout Not Configured",
                 "MEDIUM",
                 "No screen lock or inactivity timeout is configured. The workstation "
                 "will not automatically lock when left unattended, violating CIS "
@@ -97,7 +97,7 @@ class ComplianceAnalyzer(BaseAnalyzer):
             minutes = timeout // 60
             self._add_finding(
                 "DR-CMP-002",
-                "Screen Lock Timeout Exceeds 15 Minutes",
+                "Policy: Screen Lock Timeout Exceeds 15 Minutes",
                 "MEDIUM",
                 f"The screen lock inactivity timeout is set to {timeout} seconds "
                 f"({minutes} minutes), which exceeds the CIS Benchmark and STIG "
@@ -117,7 +117,7 @@ class ComplianceAnalyzer(BaseAnalyzer):
         elif not_secured:
             self._add_finding(
                 "DR-CMP-002",
-                "Screen Saver Not Password-Protected",
+                "Policy: Screen Saver Not Password-Protected",
                 "MEDIUM",
                 "The screen saver is enabled but not configured to require a password "
                 "on resume. The workstation will display the screen saver but not lock.",
@@ -147,8 +147,8 @@ class ComplianceAnalyzer(BaseAnalyzer):
         if netbios_enabled is True:
             self._add_finding(
                 "DR-CMP-003",
-                "NetBIOS over TCP/IP Enabled",
-                "MEDIUM",
+                "Network Hardening: NetBIOS over TCP/IP Enabled",
+                "HIGH",
                 "NetBIOS over TCP/IP is enabled on one or more network adapters. "
                 "NetBIOS is a legacy protocol that exposes the system to name "
                 "spoofing, enumeration, and relay attacks.",
@@ -192,7 +192,7 @@ class ComplianceAnalyzer(BaseAnalyzer):
             tech_list = ", ".join(transition_techs)
             self._add_finding(
                 "DR-CMP-004",
-                "IPv6 Transition Technologies Enabled",
+                "Network Hardening: IPv6 Transition Technologies",
                 "MEDIUM",
                 f"The following IPv6 transition technologies are enabled: {tech_list}. "
                 f"These mechanisms tunnel IPv6 traffic over IPv4, often bypassing "
@@ -230,7 +230,7 @@ class ComplianceAnalyzer(BaseAnalyzer):
                     state_text = "running" if running else f"stopped but set to {start_type}"
                     self._add_finding(
                         "DR-CMP-005",
-                        "Remote Registry Service Enabled",
+                        "Service Hardening: Remote Registry Enabled",
                         "MEDIUM",
                         f"The Remote Registry service is {state_text}. This service "
                         f"allows remote access to the Windows registry, which can be "

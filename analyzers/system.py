@@ -73,7 +73,7 @@ class SystemAnalyzer(BaseAnalyzer):
                     os_name = eol_entry["name"]
                     self._add_finding(
                         "DR-SYS-001",
-                        "End-of-Life Windows Version",
+                        "EOL Software: End-of-Life Windows Version",
                         "HIGH",
                         f"The system is running {os_name} (build {build}) which reached "
                         f"end of life on {eol_entry['eol']}. No further security updates "
@@ -103,7 +103,7 @@ class SystemAnalyzer(BaseAnalyzer):
             risk = "HIGH" if critical else "MEDIUM"
             self._add_finding(
                 "DR-SYS-002",
-                "Missing Critical Security Updates",
+                "Patch Management: Missing Critical Updates",
                 risk,
                 f"The system has {len(pending)} pending Windows updates, including "
                 f"{len(critical)} critical security updates.",
@@ -122,7 +122,7 @@ class SystemAnalyzer(BaseAnalyzer):
         if isinstance(svc_status, str) and svc_status.lower() in ("stopped", "disabled"):
             self._add_finding(
                 "DR-SYS-003",
-                "Windows Update Service Disabled",
+                "Patch Management: Windows Update Disabled",
                 "MEDIUM",
                 "The Windows Update service is disabled or stopped, preventing the "
                 "system from receiving security patches.",
@@ -142,7 +142,7 @@ class SystemAnalyzer(BaseAnalyzer):
         if not wsus and not auto_update:
             self._add_finding(
                 "DR-SYS-004",
-                "WSUS Not Configured",
+                "Patch Management: WSUS Not Configured",
                 "INFO",
                 "No WSUS server is configured and automatic updates are not enabled. "
                 "The system has no centralized update management.",
@@ -164,7 +164,7 @@ class SystemAnalyzer(BaseAnalyzer):
         if uptime_days > 90:
             self._add_finding(
                 "DR-SYS-005",
-                "System Uptime Exceeds 90 Days",
+                "Patch Management: System Uptime Exceeds 90 Days",
                 "LOW",
                 f"The system has been running for {int(uptime_days)} days without a "
                 f"reboot. Extended uptime may indicate that patches requiring a reboot "
@@ -185,7 +185,7 @@ class SystemAnalyzer(BaseAnalyzer):
         if not configured:
             self._add_finding(
                 "DR-SYS-006",
-                "No Windows Backup Configured",
+                "Patch Management: No Backup Configured",
                 "MEDIUM",
                 "Windows Backup is not configured on this system. There is no local "
                 "backup solution in place for disaster recovery.",
@@ -205,7 +205,7 @@ class SystemAnalyzer(BaseAnalyzer):
                 if age > 30:
                     self._add_finding(
                         "DR-SYS-007",
-                        "Last Backup Older Than 30 Days",
+                        "Patch Management: Last Backup Over 30 Days",
                         "MEDIUM",
                         f"The last Windows Backup was performed {age} days ago. "
                         f"Backups should be performed regularly to ensure data "
@@ -235,7 +235,7 @@ class SystemAnalyzer(BaseAnalyzer):
             drive_list = ", ".join(d.get("drive_letter", "?") for d in unencrypted)
             self._add_finding(
                 "DR-SYS-008",
-                "BitLocker Not Enabled",
+                "System Hardening: BitLocker Not Enabled",
                 "MEDIUM",
                 f"BitLocker full-disk encryption is not enabled on the following "
                 f"drives: {drive_list}. Data at rest is not protected.",
@@ -261,7 +261,7 @@ class SystemAnalyzer(BaseAnalyzer):
         if not present:
             self._add_finding(
                 "DR-SYS-009",
-                "TPM Not Available or Not Ready",
+                "System Hardening: TPM Not Available",
                 "INFO",
                 "No Trusted Platform Module (TPM) was detected on this system, or "
                 "the TPM is present but not in a ready state.",
@@ -275,7 +275,7 @@ class SystemAnalyzer(BaseAnalyzer):
         elif not ready:
             self._add_finding(
                 "DR-SYS-009",
-                "TPM Not Available or Not Ready",
+                "System Hardening: TPM Not Available",
                 "INFO",
                 "A TPM is present but not in a ready state. TPM-dependent security "
                 "features may not function correctly.",
@@ -292,7 +292,7 @@ class SystemAnalyzer(BaseAnalyzer):
         if secure_boot is False:
             self._add_finding(
                 "DR-SYS-010",
-                "Secure Boot Not Enabled",
+                "System Hardening: Secure Boot Not Enabled",
                 "MEDIUM",
                 "UEFI Secure Boot is not enabled on this system. The boot process "
                 "is not cryptographically validated.",
@@ -319,7 +319,7 @@ class SystemAnalyzer(BaseAnalyzer):
         restrict = pnp.get("RestrictDriverInstallationToAdministrators")
         if restrict is not None and int(restrict) == 0:
             self._add_finding(
-                "DR-SYS-012", "PrintNightmare Vulnerable Configuration", "CRITICAL",
+                "DR-SYS-012", "Service Hardening: PrintNightmare Vulnerable", "CRITICAL",
                 "The Print Spooler service is running with "
                 "RestrictDriverInstallationToAdministrators disabled. This "
                 "configuration is vulnerable to PrintNightmare (CVE-2021-34527).",
@@ -340,7 +340,7 @@ class SystemAnalyzer(BaseAnalyzer):
         no_warn = pnp.get("NoWarningNoElevationOnInstall")
         if no_warn is not None and int(no_warn) == 1:
             self._add_finding(
-                "DR-SYS-012", "PrintNightmare Vulnerable Configuration", "CRITICAL",
+                "DR-SYS-012", "Service Hardening: PrintNightmare Vulnerable", "CRITICAL",
                 "Point and Print NoWarningNoElevationOnInstall is enabled. "
                 "Printer driver installation proceeds silently without elevation, "
                 "leaving the system vulnerable to PrintNightmare.",
@@ -377,7 +377,7 @@ class SystemAnalyzer(BaseAnalyzer):
                     vuln_zones.append(z.get("zone_name", "?"))
         if vuln_zones:
             self._add_finding(
-                "DR-SYS-013", "DNS Zone Transfer Allowed", "MEDIUM",
+                "DR-SYS-013", "Network Hardening: DNS Zone Transfer Allowed", "MEDIUM",
                 f"DNS zone transfers are allowed to any host for {len(vuln_zones)} "
                 f"zone(s). This exposes the full DNS zone contents to any querier.",
                 "Zone transfer data reveals internal hostnames, IP addresses, and "

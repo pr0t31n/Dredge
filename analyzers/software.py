@@ -89,7 +89,7 @@ class SoftwareAnalyzer(BaseAnalyzer):
             risk = "HIGH" if len(eol_found) >= 3 else "MEDIUM"
             self._add_finding(
                 "DR-SFT-001",
-                "End-of-Life Software Installed",
+                "EOL Software: End-of-Life Software Installed",
                 risk,
                 f"{len(eol_found)} end-of-life or unsupported software package(s) "
                 f"detected. EOL software no longer receives security patches, leaving "
@@ -130,7 +130,7 @@ class SoftwareAnalyzer(BaseAnalyzer):
             output = "\n".join(found[:10])
             self._add_finding(
                 "DR-SFT-002",
-                "Remote Access Software Installed",
+                "Software: Remote Access Software",
                 "MEDIUM",
                 f"{len(found)} remote access software package(s) found in installed "
                 f"programs. These applications allow remote control of the endpoint "
@@ -173,7 +173,7 @@ class SoftwareAnalyzer(BaseAnalyzer):
             output = "\n".join(suspicious[:10])
             self._add_finding(
                 "DR-SFT-003",
-                "Suspicious Startup Item",
+                "Software: Suspicious Startup Item",
                 "HIGH",
                 f"{len(suspicious)} startup item(s) reference executables in unusual "
                 f"locations (temp directories, Downloads, Public folders). Legitimate "
@@ -215,7 +215,7 @@ class SoftwareAnalyzer(BaseAnalyzer):
             output = "\n".join(found[:5])
             self._add_finding(
                 "DR-SFT-004",
-                "P2P/Torrent Software Installed",
+                "Software: P2P/Torrent Software",
                 "MEDIUM",
                 f"{len(found)} peer-to-peer or torrent client(s) installed: "
                 f"{', '.join(found[:3])}. P2P software is commonly prohibited in "

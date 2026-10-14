@@ -85,7 +85,7 @@ class CertificateAnalyzer(BaseAnalyzer):
             subject = subject.get("CN", subject.get("cn", str(subject)))
         self._add_finding(
             "DR-CERT-001",
-            "Expired Certificate",
+            "Certificate: Expired Certificate",
             "MEDIUM",
             f"Certificate '{subject}' expired {days_expired} day(s) ago on "
             f"{not_after}. Expired certificates cause service disruptions and "
@@ -127,7 +127,7 @@ class CertificateAnalyzer(BaseAnalyzer):
         risk = "MEDIUM" if days_remaining <= 30 else "LOW"
         self._add_finding(
             "DR-CERT-002",
-            "Certificate Expiring Soon",
+            "Certificate: Expiring Soon",
             risk,
             f"Certificate '{subject}' expires in {days_remaining} day(s) on "
             f"{not_after}. Certificates expiring within 90 days require "
@@ -179,7 +179,7 @@ class CertificateAnalyzer(BaseAnalyzer):
         label = self._cert_label(cert)
         self._add_finding(
             "DR-CERT-003",
-            "Self-Signed Certificate in Trust Store",
+            "Certificate: Self-Signed in Trust Store",
             "MEDIUM",
             f"A self-signed certificate '{subject_cn}' is installed in the "
             f"certificate trust store. Self-signed certificates bypass the "
@@ -228,7 +228,7 @@ class CertificateAnalyzer(BaseAnalyzer):
         risk = "HIGH" if is_md5 else "MEDIUM"
         self._add_finding(
             "DR-CERT-004",
-            "Weak Certificate Signature Algorithm",
+            "Certificate: Weak Signature Algorithm",
             risk,
             f"Certificate '{subject}' uses the weak signature algorithm "
             f"'{sig_alg}'. {'MD5 and MD2 are' if is_md5 else 'SHA-1 is'} "
@@ -270,7 +270,7 @@ class CertificateAnalyzer(BaseAnalyzer):
         risk = "HIGH" if key_size <= 1024 else "MEDIUM"
         self._add_finding(
             "DR-CERT-005",
-            "Weak Certificate Key Size",
+            "Certificate: Weak Key Size",
             risk,
             f"Certificate '{subject}' uses a {key_size}-bit {key_alg} key. "
             f"Keys shorter than 2048 bits are considered weak and can be "

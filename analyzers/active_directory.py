@@ -58,7 +58,7 @@ class ActiveDirectoryAnalyzer(BaseAnalyzer):
         risk = "HIGH" if priv_flag else "MEDIUM"
         self._add_finding(
             "DR-AD-001",
-            "Kerberoastable Accounts Found",
+            "Active Directory: Kerberoastable Accounts",
             risk,
             f"{len(kerberoastable)} user account(s) have Service Principal Names "
             f"(SPNs) set, making them vulnerable to Kerberoasting attacks. An "
@@ -104,7 +104,7 @@ class ActiveDirectoryAnalyzer(BaseAnalyzer):
         output = "\n".join(accts[:20])
         self._add_finding(
             "DR-AD-002",
-            "AS-REP Roastable Accounts Found",
+            "Active Directory: AS-REP Roastable Accounts",
             "HIGH",
             f"{len(asrep)} account(s) have Kerberos pre-authentication disabled "
             f"(DONT_REQUIRE_PREAUTH flag). These accounts are vulnerable to "
@@ -154,7 +154,7 @@ class ActiveDirectoryAnalyzer(BaseAnalyzer):
         output = "\n".join(non_dc[:20])
         self._add_finding(
             "DR-AD-003",
-            "Unconstrained Delegation Configured",
+            "Active Directory: Unconstrained Delegation",
             "HIGH",
             f"{len(non_dc)} non-domain-controller account(s) are configured "
             f"for unconstrained Kerberos delegation. These systems can "
@@ -228,7 +228,7 @@ class ActiveDirectoryAnalyzer(BaseAnalyzer):
 
         self._add_finding(
             "DR-AD-004",
-            "Weak Domain Password Policy",
+            "Policy: Weak Domain Password Policy",
             "HIGH",
             "The Active Directory domain password policy does not meet "
             "recommended security standards. " + "; ".join(issues) + ".",
@@ -280,7 +280,7 @@ class ActiveDirectoryAnalyzer(BaseAnalyzer):
             label = labels.get(ldap_signing, str(ldap_signing))
             self._add_finding(
                 "DR-AD-005",
-                "LDAP Signing Not Enforced",
+                "Active Directory: LDAP Signing Not Enforced",
                 "MEDIUM",
                 f"LDAP signing is set to '{label}' instead of 'Require signing'. "
                 f"This allows LDAP traffic to be transmitted unsigned, enabling "
@@ -340,7 +340,7 @@ class ActiveDirectoryAnalyzer(BaseAnalyzer):
                         accts.append(str(a))
                 self._add_finding(
                     "DR-AD-006",
-                    "Kerberos DES Encryption Enabled on Accounts",
+                    "Authentication: Kerberos DES Encryption Enabled",
                     "MEDIUM",
                     f"{len(des_accounts)} account(s) have DES encryption enabled "
                     f"(USE_DES_KEY_ONLY flag). DES is a broken encryption "
@@ -369,7 +369,7 @@ class ActiveDirectoryAnalyzer(BaseAnalyzer):
         risk = "HIGH" if has_des else "MEDIUM"
         self._add_finding(
             "DR-AD-006",
-            "Kerberos Weak Encryption Types Enabled",
+            "Authentication: Kerberos Weak Encryption Types",
             risk,
             f"The domain supports weak Kerberos encryption types: {weak_list}. "
             f"DES and RC4 are cryptographically broken and should not be used "
@@ -416,7 +416,7 @@ class ActiveDirectoryAnalyzer(BaseAnalyzer):
         output = "\n".join(entries[:20])
         self._add_finding(
             "DR-AD-008",
-            "Resource-Based Constrained Delegation (RBCD) Configured",
+            "Active Directory: RBCD Configured",
             "MEDIUM",
             f"{len(rbcd)} account(s) have Resource-Based Constrained Delegation "
             f"configured (msDS-AllowedToActOnBehalfOfOtherIdentity). RBCD allows "
@@ -467,7 +467,7 @@ class ActiveDirectoryAnalyzer(BaseAnalyzer):
         output = "\n".join(outdated)
         self._add_finding(
             "DR-AD-009",
-            "Domain Functional Level Outdated",
+            "Active Directory: Domain Functional Level Outdated",
             "MEDIUM",
             "The Active Directory domain or forest functional level is running "
             "at an outdated version. " + "; ".join(outdated) + ".",
@@ -524,7 +524,7 @@ class ActiveDirectoryAnalyzer(BaseAnalyzer):
             output = "\n".join(non_privileged[:20])
             self._add_finding(
                 "DR-AD-010",
-                "AdminSDHolder Orphaned Protected Accounts",
+                "Active Directory: AdminSDHolder Orphaned Accounts",
                 "LOW",
                 f"{len(non_privileged)} account(s) have AdminCount=1 set but "
                 f"are not current members of any privileged group. These are "
@@ -546,7 +546,7 @@ class ActiveDirectoryAnalyzer(BaseAnalyzer):
         elif accts:
             self._add_finding(
                 "DR-AD-010",
-                "AdminSDHolder Protected Users Enumerated",
+                "Active Directory: AdminSDHolder Protected Users",
                 "INFO",
                 f"{len(accts)} account(s) are protected by AdminSDHolder "
                 f"(AdminCount=1). These accounts have their ACLs overwritten "
@@ -575,7 +575,7 @@ class ActiveDirectoryAnalyzer(BaseAnalyzer):
         windows_laps = laps.get("windows_laps_installed", False)
         if not legacy and not windows_laps:
             self._add_finding(
-                "DR-AD-011", "LAPS Not Deployed", "HIGH",
+                "DR-AD-011", "Active Directory: LAPS Not Deployed", "HIGH",
                 "Local Administrator Password Solution (LAPS) is not deployed. "
                 "Local administrator accounts likely share the same password "
                 "across multiple machines.",
@@ -602,7 +602,7 @@ class ActiveDirectoryAnalyzer(BaseAnalyzer):
             age_days = (datetime.now(timezone.utc) - last).days
             if age_days > 180:
                 self._add_finding(
-                    "DR-AD-012", "krbtgt Key Not Rotated", "MEDIUM",
+                    "DR-AD-012", "Active Directory: krbtgt Key Not Rotated", "MEDIUM",
                     f"The krbtgt account password has not been changed in {age_days} "
                     f"days. Microsoft recommends rotating it at least every 180 days.",
                     "The krbtgt account key is used to sign all Kerberos tickets. If "
@@ -641,7 +641,7 @@ class ActiveDirectoryAnalyzer(BaseAnalyzer):
                 continue
         if len(stale) > 5:
             self._add_finding(
-                "DR-AD-013", "Stale Domain Accounts", "LOW",
+                "DR-AD-013", "Account Management: Stale Domain Accounts", "LOW",
                 f"{len(stale)} enabled domain accounts have not logged in for over "
                 f"90 days. Stale accounts increase the attack surface.",
                 "Stale accounts are prime targets for password spraying and "
@@ -670,7 +670,7 @@ class ActiveDirectoryAnalyzer(BaseAnalyzer):
                 sid_hist_users.append(u.get("samaccountname", u.get("name", "?")))
         if sid_hist_users:
             self._add_finding(
-                "DR-AD-014", "SID History Abuse Risk", "MEDIUM",
+                "DR-AD-014", "Active Directory: SID History Abuse Risk", "MEDIUM",
                 f"{len(sid_hist_users)} account(s) have SID History entries. SID "
                 f"History can be abused to impersonate accounts from trusted domains.",
                 "An attacker with write access to AD can inject arbitrary SIDs into "

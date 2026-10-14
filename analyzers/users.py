@@ -28,7 +28,7 @@ class UserAnalyzer(BaseAnalyzer):
                 name = user.get("name", "Administrator")
                 self._add_finding(
                     "DR-USR-001",
-                    "Built-in Administrator Account Enabled",
+                    "Account Management: Built-in Administrator Enabled",
                     "MEDIUM",
                     f"The built-in Administrator account (SID ending in -500) is "
                     f"enabled with the name '{name}'. This well-known account is "
@@ -71,7 +71,7 @@ class UserAnalyzer(BaseAnalyzer):
                 name = user.get("name", "Guest")
                 self._add_finding(
                     "DR-USR-002",
-                    "Guest Account Enabled",
+                    "Account Management: Guest Account Enabled",
                     "HIGH",
                     f"The Guest account ('{name}') is enabled, providing a path "
                     f"for unauthenticated access to the system. The Guest account "
@@ -116,7 +116,7 @@ class UserAnalyzer(BaseAnalyzer):
             acct_list = "\n".join(no_expire[:15])
             self._add_finding(
                 "DR-USR-003",
-                "Password Never Expires on User Account",
+                "Account Management: Password Never Expires",
                 "MEDIUM",
                 f"{len(no_expire)} enabled account(s) have passwords set to never "
                 f"expire. These accounts can retain the same password indefinitely, "
@@ -159,7 +159,7 @@ class UserAnalyzer(BaseAnalyzer):
             member_list = "\n".join(members)
             self._add_finding(
                 "DR-USR-004",
-                "Excessive Local Administrators",
+                "Account Management: Excessive Local Administrators",
                 "MEDIUM",
                 f"The local Administrators group has {len(admin_group)} members. "
                 f"Best practice recommends no more than 3 members to limit the "
@@ -223,7 +223,7 @@ class UserAnalyzer(BaseAnalyzer):
 
         self._add_finding(
             "DR-USR-005",
-            "Weak Password Policy",
+            "Policy: Weak Password Policy",
             "HIGH",
             "The local password policy does not meet minimum security "
             "requirements. " + "; ".join(issues) + ".",
@@ -286,7 +286,7 @@ class UserAnalyzer(BaseAnalyzer):
         risk = "HIGH" if threshold == 0 else "MEDIUM"
         self._add_finding(
             "DR-USR-006",
-            "Account Lockout Not Configured or Too Permissive",
+            "Authentication: Account Lockout Not Configured",
             risk,
             "The account lockout policy is not configured or is too permissive. "
             + "; ".join(issues) + ".",

@@ -23,7 +23,7 @@ class PrivilegeEscalationAnalyzer(BaseAnalyzer):
         if hklm is not None and hkcu is not None:
             if int(hklm) == 1 and int(hkcu) == 1:
                 self._add_finding(
-                    "DR-PRIV-001", "AlwaysInstallElevated Enabled", "HIGH",
+                    "DR-PRIV-001", "Privilege Escalation: AlwaysInstallElevated Enabled", "HIGH",
                     "Both HKLM and HKCU AlwaysInstallElevated registry keys are "
                     "set to 1. This allows any user to install MSI packages with "
                     "SYSTEM-level privileges.",
@@ -58,7 +58,7 @@ class PrivilegeEscalationAnalyzer(BaseAnalyzer):
             path = svc.get("binary_path", "")
             account = svc.get("start_account", "")
             self._add_finding(
-                "DR-PRIV-002", "Modifiable Service Binary", "HIGH",
+                "DR-PRIV-002", "Privilege Escalation: Modifiable Service Binary", "HIGH",
                 f"Service '{name}' has a binary path that is writable by the "
                 f"current user. An attacker can replace the service binary to "
                 f"execute code with the service's privileges.",
@@ -87,7 +87,7 @@ class PrivilegeEscalationAnalyzer(BaseAnalyzer):
             for d in writable_dirs[:10]
         )
         self._add_finding(
-            "DR-PRIV-003", "DLL Search Order Hijacking Risk", "MEDIUM",
+            "DR-PRIV-003", "Privilege Escalation: DLL Search Order Hijacking", "MEDIUM",
             f"{len(writable_dirs)} directory(ies) in the system PATH are writable "
             f"by the current user. Placing a malicious DLL in these directories "
             f"can hijack DLL loading for applications and services.",
@@ -127,7 +127,7 @@ class PrivilegeEscalationAnalyzer(BaseAnalyzer):
             return
         priv_list = ", ".join(found)
         self._add_finding(
-            "DR-PRIV-004", "Dangerous Token Privileges Held", "HIGH",
+            "DR-PRIV-004", "Privilege Escalation: Dangerous Token Privileges", "HIGH",
             f"The current process holds {len(found)} dangerous privilege(s): "
             f"{priv_list}. These privileges can be abused for privilege escalation "
             f"to SYSTEM.",
@@ -159,7 +159,7 @@ class PrivilegeEscalationAnalyzer(BaseAnalyzer):
             path = svc.get("binary_path", "")
             writable_dir = svc.get("writable_intermediate", "")
             self._add_finding(
-                "DR-PRIV-005", "Unquoted Service Path with Writable Directory", "MEDIUM",
+                "DR-PRIV-005", "Privilege Escalation: Unquoted Service Path", "MEDIUM",
                 f"Service '{name}' has an unquoted binary path containing spaces: "
                 f"'{path}'. An intermediate directory in this path is writable, "
                 f"allowing binary planting.",
@@ -189,7 +189,7 @@ class PrivilegeEscalationAnalyzer(BaseAnalyzer):
             for p in pipes[:10]
         )
         self._add_finding(
-            "DR-PRIV-006", "Named Pipe Permission Weakness", "MEDIUM",
+            "DR-PRIV-006", "Access Control: Named Pipe Permission Weakness", "MEDIUM",
             f"{len(pipes)} named pipe(s) have permissive ACLs allowing "
             f"non-administrative access. Permissive named pipes can be exploited "
             f"for impersonation attacks.",

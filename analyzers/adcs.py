@@ -88,7 +88,7 @@ class ADCSAnalyzer(BaseAnalyzer):
                 continue
             self._add_finding(
                 "DR-ADCS-001",
-                "ESC1 - Misconfigured Certificate Template", "CRITICAL",
+                "ADCS: ESC1 - Misconfigured Certificate Template", "CRITICAL",
                 f"Certificate template '{name}' allows the enrollee to supply "
                 f"an arbitrary Subject Alternative Name (SAN), includes Client "
                 f"Authentication EKU, and permits low-privileged enrollment "
@@ -135,7 +135,7 @@ class ADCSAnalyzer(BaseAnalyzer):
             reason = "Any Purpose EKU" if has_any_purpose else "No EKU restriction"
             self._add_finding(
                 "DR-ADCS-002",
-                "ESC2 - Overly Permissive Template", "HIGH",
+                "ADCS: ESC2 - Overly Permissive Template", "HIGH",
                 f"Certificate template '{name}' has {reason} and allows "
                 f"low-privileged enrollment. Certificates can be used for any "
                 f"purpose including client authentication, code signing, and "
@@ -168,7 +168,7 @@ class ADCSAnalyzer(BaseAnalyzer):
                 continue
             self._add_finding(
                 "DR-ADCS-003",
-                "ESC3 - Enrollment Agent Template", "HIGH",
+                "ADCS: ESC3 - Enrollment Agent Template", "HIGH",
                 f"Certificate template '{name}' has the Certificate Request "
                 f"Agent EKU (1.3.6.1.4.1.311.20.2.1) with low-privileged "
                 f"enrollment and no issuance requirements. This allows "
@@ -214,7 +214,7 @@ class ADCSAnalyzer(BaseAnalyzer):
                     continue
                 self._add_finding(
                     "DR-ADCS-004",
-                    "ESC4 - Vulnerable Template ACL", "HIGH",
+                    "ADCS: ESC4 - Vulnerable Template ACL", "HIGH",
                     f"Certificate template '{name}' grants dangerous rights "
                     f"({rights}) to '{ace.get('identity', sid)}'. A low-privileged "
                     f"user can modify the template to enable ESC1 conditions.",
@@ -252,7 +252,7 @@ class ADCSAnalyzer(BaseAnalyzer):
                 continue
             self._add_finding(
                 "DR-ADCS-005",
-                "ESC6 - EDITF_ATTRIBUTESUBJECTALTNAME2 Flag Set", "CRITICAL",
+                "ADCS: ESC6 - EDITF_ATTRIBUTESUBJECTALTNAME2", "CRITICAL",
                 f"Certificate Authority '{ca_name}' has the "
                 f"EDITF_ATTRIBUTESUBJECTALTNAME2 flag enabled. This allows "
                 f"any certificate request to specify an arbitrary SAN, "
@@ -290,7 +290,7 @@ class ADCSAnalyzer(BaseAnalyzer):
             endpoint = ca.get("enrollment_url", "")
             self._add_finding(
                 "DR-ADCS-006",
-                "ESC8 - NTLM Relay to HTTP Enrollment", "HIGH",
+                "ADCS: ESC8 - NTLM Relay to HTTP Enrollment", "HIGH",
                 f"Certificate Authority '{ca_name}' has an HTTP-based enrollment "
                 f"endpoint accessible via NTLM authentication. This enables "
                 f"NTLM relay attacks to request certificates as relayed users.",

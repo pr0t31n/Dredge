@@ -18,7 +18,7 @@ class HardwareInventoryAnalyzer(BaseAnalyzer):
             if status and status.lower() not in ("ok", ""):
                 self._add_finding(
                     "DR-HW-001",
-                    "GPU Adapter Reporting Issues",
+                    "Hardware: GPU Adapter Reporting Issues",
                     "LOW",
                     f"GPU adapter '{g.get('name', '?')}' is reporting a non-OK "
                     f"status: {status}. This may indicate a driver issue or "
@@ -52,7 +52,7 @@ class HardwareInventoryAnalyzer(BaseAnalyzer):
         if storage_usb:
             self._add_finding(
                 "DR-HW-002",
-                "USB Mass Storage Devices on Server",
+                "Hardware: USB Mass Storage on Server",
                 "MEDIUM",
                 f"{len(storage_usb)} USB mass storage device(s) detected on "
                 f"this server. USB storage devices on servers can be used for "
@@ -84,7 +84,7 @@ class HardwareInventoryAnalyzer(BaseAnalyzer):
             slots = hw.get("memory_slot_count", 0)
             self._add_finding(
                 "DR-HW-003",
-                "Server Running Without ECC Memory",
+                "Hardware: Server Without ECC Memory",
                 "LOW",
                 f"This server has {total} GB of non-ECC memory across "
                 f"{slots} module(s). ECC memory detects and corrects "

@@ -86,7 +86,7 @@ class ProcessAnalyzer(BaseAnalyzer):
         output = "\n".join(output_lines)
         self._add_finding(
             "DR-PROC-001",
-            "Known Malicious Process Detected",
+            "Process: Known Malicious Process Detected",
             "CRITICAL",
             f"{len(malicious)} running process(es) match known malicious "
             f"software signatures in the threat intelligence database. This "
@@ -138,7 +138,7 @@ class ProcessAnalyzer(BaseAnalyzer):
         output = "\n".join(temp_procs[:15])
         self._add_finding(
             "DR-PROC-002",
-            "Process Running from Temporary Directory",
+            "Process: Running from Temporary Directory",
             "HIGH",
             f"{len(temp_procs)} process(es) are executing from temporary "
             f"directories. Legitimate software rarely runs from temp folders; "
@@ -199,7 +199,7 @@ class ProcessAnalyzer(BaseAnalyzer):
         output = "\n".join(no_path[:15])
         self._add_finding(
             "DR-PROC-003",
-            "Process with No Executable Path",
+            "Process: No Executable Path",
             "MEDIUM",
             f"{len(no_path)} running process(es) have no associated executable "
             f"path on disk. This may indicate fileless malware, process "
@@ -254,7 +254,7 @@ class ProcessAnalyzer(BaseAnalyzer):
         output = "\n".join(suspicious[:15])
         self._add_finding(
             "DR-PROC-004",
-            "SYSTEM Process Running from User-Writable Path",
+            "Process: SYSTEM Process in User-Writable Path",
             "CRITICAL",
             f"{len(suspicious)} process(es) are running as SYSTEM from "
             f"user-writable locations. Legitimate SYSTEM processes run from "

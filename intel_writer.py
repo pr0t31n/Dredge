@@ -287,6 +287,394 @@ def _build_hardware_report(data):
     return report
 
 
+def _build_endpoint_status(data):
+    si = data.get("system_info", {})
+    if not isinstance(si, dict) or not si:
+        return None
+    dd = data.get("defender_detailed", {})
+    av = dd.get("av_products", []) if isinstance(dd, dict) else []
+    pe = data.get("privilege_escalation", {})
+    return {
+        "hostname": _safe(data.get("hostname") or si.get("hostname")),
+        "os_name": _safe(si.get("os_name")),
+        "os_version": _safe(si.get("os_version")),
+        "os_build": si.get("os_build", 0),
+        "os_product_type": _safe(si.get("os_product_type")),
+        "domain_joined": si.get("is_domain_joined", False),
+        "domain_name": _safe(si.get("domain")),
+        "domain_role": _safe(si.get("domain_role")),
+        "uptime_days": si.get("uptime_days", 0),
+        "bios_version": _safe(si.get("bios_version")),
+        "secure_boot": si.get("secure_boot", False),
+        "tpm": si.get("tpm", {}),
+        "collector_method": _safe(data.get("collector_method")),
+        "collection_timestamp": _safe(data.get("collection_timestamp")),
+        "collection_duration_seconds": data.get("collection_duration_seconds", 0),
+        "sections_collected": len(data.get("sections_collected", [])),
+        "sections_failed": len(data.get("sections_failed", [])),
+        "total_findings": 0,
+        "antivirus": [{"name": _safe(a.get("name")),
+                       "state": _safe(a.get("state"))}
+                      for a in av if isinstance(a, dict)] if av else [],
+        "realtime_monitoring_disabled": dd.get("realtime_monitoring_disabled", False)
+            if isinstance(dd, dict) else False,
+        "always_install_elevated": (
+            pe.get("always_install_elevated_hklm") == 1
+            or pe.get("always_install_elevated_hkcu") == 1
+        ) if isinstance(pe, dict) else False,
+    }
+
+
+def _build_hardening_results(data):
+    rh = data.get("registry_hardening", {})
+    sp = data.get("security_policy", {})
+    if (not isinstance(rh, dict) or not rh) and (not isinstance(sp, dict) or not sp):
+        return None
+
+    _RECOMMENDED = {
+        "EnableLUA": (1, "UAC enabled"),
+        "ConsentPromptBehaviorAdmin": (2, "Prompt for consent on secure desktop"),
+        "LmCompatibilityLevel": (5, "Send NTLMv2 only / refuse LM & NTLM"),
+        "EnableInstallerDetection": (1, "Installer detection enabled"),
+        "FilterAdministratorToken": (1, "Filter admin token for built-in admin"),
+        "PromptOnSecureDesktop": (1, "Prompt on secure desktop"),
+        "ValidateAdminCodeSignatures": (1, "Validate admin code signatures"),
+        "EnableSecureUIAPaths": (1, "Secure UIA paths enabled"),
+        "EnableVirtualization": (1, "File/registry virtualization enabled"),
+        "WDigest_UseLogonCredential": (0, "WDigest cleartext disabled"),
+        "LSA_RunAsPPL": (1, "LSA runs as protected process"),
+        "NullSessionPipes": (0, "No null session pipes"),
+        "NullSessionShares": (0, "No null session shares"),
+        "RestrictAnonymous": (1, "Restrict anonymous access"),
+        "RestrictAnonymousSAM": (1, "Restrict anonymous SAM enumeration"),
+        "EveryoneIncludesAnonymous": (0, "Everyone does not include anonymous"),
+        "NoLMHash": (1, "Do not store LM hash"),
+        "EnableFirewall_Domain": (1, "Domain firewall enabled"),
+        "EnableFirewall_Private": (1, "Private firewall enabled"),
+        "EnableFirewall_Public": (1, "Public firewall enabled"),
+        "AllowICMPRedirect": (0, "ICMP redirects disabled"),
+        "DisableIPSourceRouting": (2, "IP source routing fully disabled"),
+        "TcpMaxDataRetransmissions": (3, "Limit TCP retransmissions"),
+        "EnableDeadGWDetect": (0, "Dead GW detect disabled"),
+        "KeepAliveTime": (300000, "Keepalive time 5 min"),
+    }
+
+    items = []
+    if isinstance(rh, dict):
+        for setting, current_val in rh.items():
+            rec = _RECOMMENDED.get(setting)
+            if rec:
+                rec_val, rec_desc = rec
+                items.append({
+                    "setting": setting,
+                    "current_value": current_val,
+                    "recommended_value": rec_val,
+                    "recommendation": rec_desc,
+                    "compliant": current_val == rec_val if current_val is not None else False,
+                })
+            else:
+                items.append({
+                    "setting": setting,
+                    "current_value": current_val,
+                    "recommended_value": None,
+                    "recommendation": "",
+                    "compliant": None,
+                })
+
+    pp = sp.get("password_policy", {}) if isinstance(sp, dict) else {}
+    lp = sp.get("lockout_policy", {}) if isinstance(sp, dict) else {}
+
+    return {
+        "registry_hardening": items,
+        "compliant_count": sum(1 for i in items if i.get("compliant") is True),
+        "non_compliant_count": sum(1 for i in items if i.get("compliant") is False),
+        "unchecked_count": sum(1 for i in items if i.get("compliant") is None),
+        "password_policy": pp if isinstance(pp, dict) else {},
+        "lockout_policy": lp if isinstance(lp, dict) else {},
+    }
+
+
+def _build_software_inventory(data):
+    sw = data.get("installed_software", [])
+    svcs = data.get("services", [])
+    tasks = data.get("scheduled_tasks", [])
+    if not sw and not svcs and not tasks:
+        return None
+
+    software = []
+    if isinstance(sw, list):
+        for s in sw:
+            if not isinstance(s, dict):
+                continue
+            software.append({
+                "name": _safe(s.get("name")),
+                "version": _safe(s.get("version")),
+                "publisher": _safe(s.get("publisher")),
+                "install_date": _safe(s.get("install_date")),
+            })
+
+    running = 0
+    auto_start = 0
+    svc_list = []
+    if isinstance(svcs, list):
+        for s in svcs:
+            if not isinstance(s, dict):
+                continue
+            state = _safe(s.get("status")).upper()
+            start = _safe(s.get("start_type")).upper()
+            if state == "RUNNING":
+                running += 1
+            if "AUTO" in start:
+                auto_start += 1
+            svc_list.append({
+                "name": _safe(s.get("name")),
+                "display_name": _safe(s.get("display_name")),
+                "state": _safe(s.get("status")),
+                "start_type": _safe(s.get("start_type")),
+                "account": _safe(s.get("start_account")),
+            })
+
+    notable = []
+    if isinstance(tasks, list):
+        seen = set()
+        for t in tasks:
+            if not isinstance(t, dict):
+                continue
+            tname = t.get("TaskName", "")
+            if tname in seen:
+                continue
+            seen.add(tname)
+            if t.get("Scheduled Task State") != "Enabled":
+                continue
+            author = _safe(t.get("Author")).lower()
+            if "microsoft" in author:
+                continue
+            notable.append({
+                "task_name": tname,
+                "run_as": _safe(t.get("Run As User")),
+                "command": _safe(t.get("Task To Run")),
+                "status": _safe(t.get("Status")),
+                "schedule_type": _safe(t.get("Schedule Type")),
+            })
+
+    return {
+        "software": software,
+        "software_count": len(software),
+        "services_summary": {
+            "total": len(svc_list),
+            "running": running,
+            "auto_start": auto_start,
+        },
+        "services": svc_list,
+        "notable_tasks": notable,
+        "notable_task_count": len(notable),
+        "total_scheduled_tasks": len(tasks) if isinstance(tasks, list) else 0,
+    }
+
+
+def _build_ad_assessment(data):
+    ad = data.get("active_directory", {})
+    ua = data.get("user_accounts", {})
+    adcs = data.get("adcs", {})
+    laps = data.get("laps_config", {})
+    si = data.get("system_info", {})
+    if not isinstance(ad, dict):
+        ad = {}
+    if not isinstance(ua, dict):
+        ua = {}
+    if not ad and not ua:
+        return None
+
+    local_users = []
+    admins_group = []
+    if isinstance(ua, dict):
+        for u in ua.get("local_users", []):
+            if not isinstance(u, dict):
+                continue
+            local_users.append({
+                "name": _safe(u.get("name")),
+                "enabled": u.get("enabled", False),
+                "password_never_expires": u.get("password_never_expires", False),
+                "description": _safe(u.get("description")),
+            })
+        raw_admins = ua.get("administrators_group", [])
+        if isinstance(raw_admins, list):
+            admins_group = [_safe(a) if isinstance(a, str) else _safe(a.get("name"))
+                           for a in raw_admins if a]
+
+    ca_list = []
+    templates = []
+    if isinstance(adcs, dict):
+        for ca in adcs.get("certificate_authorities", []):
+            if isinstance(ca, dict):
+                ca_list.append({
+                    "name": _safe(ca.get("name")),
+                    "type": _safe(ca.get("type")),
+                    "status": _safe(ca.get("status")),
+                })
+        for t in adcs.get("templates", []):
+            if isinstance(t, dict):
+                templates.append({
+                    "name": _safe(t.get("name")),
+                    "oid": _safe(t.get("oid")),
+                })
+
+    return {
+        "domain_joined": si.get("is_domain_joined", False)
+            if isinstance(si, dict) else False,
+        "domain_name": _safe(si.get("domain") if isinstance(si, dict) else ""),
+        "domain_controllers": ad.get("domain_controllers", []),
+        "domain_admins": ad.get("domain_admins", []),
+        "enterprise_admins": ad.get("enterprise_admins", []),
+        "ldap_signing": ad.get("ldap_signing", {})
+            if isinstance(ad.get("ldap_signing"), dict) else {},
+        "local_users": local_users,
+        "local_user_count": len(local_users),
+        "administrators_group": admins_group,
+        "administrator_count": len(admins_group),
+        "adcs_available": adcs.get("available", False) if isinstance(adcs, dict) else False,
+        "certificate_authorities": ca_list,
+        "certificate_templates": templates,
+        "laps_available": laps.get("available", False) if isinstance(laps, dict) else False,
+        "laps_legacy_installed": laps.get("legacy_installed", False)
+            if isinstance(laps, dict) else False,
+        "laps_windows_installed": laps.get("windows_laps_installed", False)
+            if isinstance(laps, dict) else False,
+    }
+
+
+def _build_network_posture(data):
+    nc = data.get("network_config", {})
+    op = data.get("open_ports", [])
+    ac = data.get("active_connections", [])
+    fw = data.get("firewall", {})
+    dns = data.get("dns_config", {})
+    if not isinstance(nc, dict):
+        nc = {}
+    if not nc and not op and not ac:
+        return None
+
+    _HIGH_RISK = {
+        21: "FTP", 23: "Telnet", 135: "RPC", 139: "NetBIOS", 445: "SMB",
+        1433: "MSSQL", 1434: "MSSQL Browser", 3306: "MySQL", 3389: "RDP",
+        5900: "VNC", 5985: "WinRM", 5986: "WinRM-SSL", 6379: "Redis",
+        27017: "MongoDB",
+    }
+
+    adapters = []
+    for a in nc.get("adapters", []):
+        if isinstance(a, dict):
+            adapters.append({
+                "description": _safe(a.get("description")),
+                "ip_address": _safe(a.get("ip_address")),
+                "subnet": _safe(a.get("subnet")),
+                "gateway": _safe(a.get("gateway")),
+                "dhcp_enabled": a.get("dhcp_enabled", False),
+                "mac_address": _safe(a.get("mac_address")),
+            })
+
+    high_risk = []
+    listening_ports = set()
+    if isinstance(op, list):
+        for p in op:
+            if not isinstance(p, dict):
+                continue
+            port = p.get("port", 0)
+            state = _safe(p.get("state")).upper()
+            if state == "LISTENING":
+                listening_ports.add(port)
+            if port in _HIGH_RISK and state == "LISTENING":
+                high_risk.append({
+                    "port": port,
+                    "service": _HIGH_RISK[port],
+                    "protocol": _safe(p.get("protocol")),
+                    "process": p.get("process", ""),
+                })
+
+    established = 0
+    listening = 0
+    remote_ips = set()
+    if isinstance(ac, list):
+        for c in ac:
+            if not isinstance(c, dict):
+                continue
+            state = _safe(c.get("state")).upper()
+            if state == "ESTABLISHED":
+                established += 1
+            elif state == "LISTENING":
+                listening += 1
+            rip = c.get("remote_address", "")
+            if rip and rip not in ("0.0.0.0", "::", "127.0.0.1", "::1", "*"):
+                remote_ips.add(rip)
+
+    profiles = {}
+    if isinstance(fw, dict):
+        for pname, pdata in fw.get("profiles", {}).items():
+            if isinstance(pdata, dict):
+                profiles[pname] = {
+                    "enabled": pdata.get("State", pdata.get("enabled", "unknown")),
+                }
+            else:
+                profiles[pname] = {"enabled": "unknown"}
+
+    dns_info = {}
+    if isinstance(dns, dict):
+        dns_info = {
+            "service_running": dns.get("dns_service_running", False),
+            "zones": dns.get("zones", []),
+        }
+
+    return {
+        "adapters": adapters,
+        "dns_servers": nc.get("dns_servers", []),
+        "proxy": nc.get("proxy", {}),
+        "domain": _safe(nc.get("domain")),
+        "netbios_over_tcpip": nc.get("netbios_over_tcpip", False),
+        "open_ports_total": len(listening_ports),
+        "high_risk_ports": high_risk,
+        "high_risk_port_count": len(high_risk),
+        "connections_total": len(ac) if isinstance(ac, list) else 0,
+        "connections_established": established,
+        "connections_listening": listening,
+        "unique_remote_ips": len(remote_ips),
+        "firewall_profiles": profiles,
+        "dns": dns_info,
+    }
+
+
+def _build_browser_audit(data):
+    browsers = {}
+    has_any = False
+    for key, label in (("browser_chrome", "Chrome"),
+                       ("browser_edge", "Edge"),
+                       ("browser_firefox", "Firefox")):
+        bd = data.get(key, {})
+        if not isinstance(bd, dict):
+            bd = {}
+        installed = bool(bd)
+        if installed:
+            has_any = True
+        extensions = []
+        for e in bd.get("extensions", []):
+            if isinstance(e, dict):
+                extensions.append({
+                    "name": _safe(e.get("name")),
+                    "id": _safe(e.get("id")),
+                    "version": _safe(e.get("version")),
+                    "enabled": e.get("enabled", True),
+                })
+        browsers[label] = {
+            "installed": installed,
+            "extensions": extensions,
+            "extension_count": len(extensions),
+            "history_entries": len(bd.get("history", [])),
+            "saved_passwords": len(bd.get("saved_passwords", [])),
+        }
+    if not has_any:
+        return None
+    return browsers
+
+
 def write_intel_files(data, output_dir):
     out = Path(output_dir)
 
@@ -300,9 +688,29 @@ def write_intel_files(data, output_dir):
         (out / "hardware_report.json").write_text(
             json.dumps(hw_report, indent=2), encoding="utf-8")
 
+    _BUILDERS = [
+        ("endpoint_status.json", _build_endpoint_status),
+        ("hardening_results.json", _build_hardening_results),
+        ("software_inventory.json", _build_software_inventory),
+        ("ad_assessment.json", _build_ad_assessment),
+        ("network_posture.json", _build_network_posture),
+        ("browser_audit.json", _build_browser_audit),
+    ]
+
     written = []
     if disk_report is not None:
         written.append("disk_storage_report.json")
     if hw_report is not None:
         written.append("hardware_report.json")
+
+    for filename, builder in _BUILDERS:
+        try:
+            result = builder(data)
+        except Exception:
+            continue
+        if result is not None:
+            (out / filename).write_text(
+                json.dumps(result, indent=2, default=str), encoding="utf-8")
+            written.append(filename)
+
     return written

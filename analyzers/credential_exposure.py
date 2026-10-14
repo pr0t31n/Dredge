@@ -30,7 +30,7 @@ class CredentialExposureAnalyzer(BaseAnalyzer):
             return
         names = ", ".join(p.get("profile_name", "?") for p in cleartext[:10])
         self._add_finding(
-            "DR-CRED-001", "WiFi Passwords Stored in Cleartext", "MEDIUM",
+            "DR-CRED-001", "Credential Exposure: WiFi Passwords in Cleartext", "MEDIUM",
             f"{len(cleartext)} WiFi profile(s) have passwords stored in cleartext "
             f"on this system. Any local user or process can retrieve these passwords "
             f"using 'netsh wlan show profile name=X key=clear'.",
@@ -65,7 +65,7 @@ class CredentialExposureAnalyzer(BaseAnalyzer):
         if not parts:
             return
         self._add_finding(
-            "DR-CRED-002", "Saved Remote Sessions Found", "MEDIUM",
+            "DR-CRED-002", "Credential Exposure: Saved Remote Sessions", "MEDIUM",
             f"Saved remote access sessions were found for: {', '.join(parts)}. "
             f"These sessions may contain stored credentials or connection details "
             f"that could facilitate lateral movement.",
@@ -101,7 +101,7 @@ class CredentialExposureAnalyzer(BaseAnalyzer):
         names = ", ".join(f.get("filename", f.get("path", "?"))
                           for f in non_gpp[:10])
         self._add_finding(
-            "DR-CRED-003", "Credential Files on Disk", "HIGH",
+            "DR-CRED-003", "Credential Exposure: Credential Files on Disk", "HIGH",
             f"{len(non_gpp)} file(s) containing potential credentials were found "
             f"on disk. These include configuration files, unattended installation "
             f"files, and application configs that may contain plaintext or "
@@ -133,7 +133,7 @@ class CredentialExposureAnalyzer(BaseAnalyzer):
             return
         paths = ", ".join(f.get("path", "?") for f in gpp_files[:5])
         self._add_finding(
-            "DR-CRED-004", "GPP cpassword Credential Exposure", "CRITICAL",
+            "DR-CRED-004", "Credential Exposure: GPP cpassword Exposure", "CRITICAL",
             f"Group Policy Preferences (GPP) XML file(s) with cpassword attribute "
             f"found. The AES-256 key used by GPP was published by Microsoft "
             f"(MS14-025), making all cpassword values trivially decryptable.",
@@ -169,7 +169,7 @@ class CredentialExposureAnalyzer(BaseAnalyzer):
         names = ", ".join(c.get("provider", c.get("path", "?"))
                           for c in found[:10])
         self._add_finding(
-            "DR-CRED-005", "Cloud Credential Files Found", "HIGH",
+            "DR-CRED-005", "Credential Exposure: Cloud Credential Files", "HIGH",
             f"{len(found)} cloud credential file(s) found on this system. These "
             f"files may contain API keys, access tokens, or service account "
             f"credentials for cloud platforms (AWS, Azure, GCP).",
@@ -193,7 +193,7 @@ class CredentialExposureAnalyzer(BaseAnalyzer):
         if not vaults:
             return
         self._add_finding(
-            "DR-CRED-006", "Windows Credential Manager Entries", "INFO",
+            "DR-CRED-006", "Credential Exposure: Credential Manager Entries", "INFO",
             f"{len(vaults)} credential(s) stored in Windows Credential Manager "
             f"(Vault). These are encrypted using DPAPI and tied to the user's "
             f"logon session.",
@@ -221,7 +221,7 @@ class CredentialExposureAnalyzer(BaseAnalyzer):
         if not accessible:
             return
         self._add_finding(
-            "DR-CRED-007", "DPAPI Master Key Accessible", "MEDIUM",
+            "DR-CRED-007", "Credential Exposure: DPAPI Master Key Accessible", "MEDIUM",
             f"{accessible} DPAPI master key(s) accessible on this system. DPAPI "
             f"protects browser passwords, WiFi keys, Credential Manager entries, "
             f"and other sensitive data. Access to master keys enables decryption.",
@@ -247,7 +247,7 @@ class CredentialExposureAnalyzer(BaseAnalyzer):
         paths = ", ".join(k.get("path", "?") if isinstance(k, dict) else str(k)
                           for k in keepass[:10])
         self._add_finding(
-            "DR-CRED-008", "KeePass Database Files Found", "INFO",
+            "DR-CRED-008", "Credential Exposure: KeePass Database Found", "INFO",
             f"{len(keepass)} KeePass database file(s) (.kdbx) found on this "
             f"system. These files contain encrypted password vaults.",
             "KeePass databases are high-value targets. While encrypted, they can "
@@ -273,7 +273,7 @@ class CredentialExposureAnalyzer(BaseAnalyzer):
             for k in keys[:10]
         )
         self._add_finding(
-            "DR-CRED-009", "SSH Private Keys Found", "MEDIUM",
+            "DR-CRED-009", "Credential Exposure: SSH Private Keys Found", "MEDIUM",
             f"{len(keys)} SSH private key file(s) found on this system. Private "
             f"keys enable passwordless authentication to remote systems.",
             "SSH private keys allow direct authentication to remote servers. An "
