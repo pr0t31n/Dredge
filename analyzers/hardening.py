@@ -449,7 +449,12 @@ class HardeningAnalyzer(BaseAnalyzer):
         }
         for policy, expected in critical_policies.items():
             current = audit.get(policy, "")
-            if not current or current.lower() == "no auditing":
+            if isinstance(current, dict):
+                vals = [str(v).lower() for v in current.values()]
+                if all(v == "no auditing" for v in vals):
+                    insufficient.append(f"{policy}: All subcategories — No Auditing")
+                continue
+            if not current or str(current).lower() == "no auditing":
                 insufficient.append(f"{policy}: {current or 'Not configured'}")
         if insufficient:
             self._add_finding(
