@@ -16,7 +16,8 @@
     remote_management, cloud_software, event_logs, startup_items,
     bitlocker, windows_backup, credential_exposure, privilege_escalation,
     defender_detailed, adcs, persistence_mechanisms, powershell_config,
-    laps_config, print_config, dns_config, privacy_artifacts
+    laps_config, print_config, dns_config, privacy_artifacts,
+    disk_storage, hardware_inventory
 .PARAMETER Quiet
     Suppress progress output.
 .PARAMETER NoHash
@@ -31,7 +32,7 @@ param(
 )
 
 $ErrorActionPreference = "Continue"
-$DredgeVersion = "1.0.0"
+$DredgeVersion = "1.3.1"
 $StartTime = Get-Date
 $Hostname = $env:COMPUTERNAME
 $OutputFile = Join-Path $OutputPath ("dredge_collection_{0}_{1}.json" -f $Hostname, (Get-Date -Format "yyyyMMdd_HHmmss"))
