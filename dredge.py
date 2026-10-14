@@ -60,6 +60,11 @@ except ImportError:
     _write_intel = None
 from threat_intel.api_enrichment import enrich_findings
 
+try:
+    from cmd_assembler import assemble as _cmd_assemble
+except ImportError:
+    _cmd_assemble = None
+
 
 def _log(msg, level="INFO"):
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
@@ -251,7 +256,7 @@ def main():
     parser = argparse.ArgumentParser(
         description=f"Dredge v{VERSION} — Windows Endpoint Security Auditor")
     parser.add_argument("--collection", "-c",
-                        help="Path to collection JSON from dredge_collect.ps1")
+                        help="Path to collection JSON or CMD collection directory")
     parser.add_argument("--winrm-host",
                         help="Target hostname/IP for WinRM remote collection")
     parser.add_argument("--winrm-user",
@@ -313,8 +318,21 @@ def main():
 
     # Load collection data
     if args.collection:
-        _log(f"Loading collection from {args.collection}")
-        data = load_collection(args.collection)
+        coll_path = Path(args.collection)
+        if coll_path.is_dir():
+            if _cmd_assemble is None:
+                print("ERROR: cmd_assembler.py not found — cannot parse CMD collection directory",
+                      file=sys.stderr)
+                sys.exit(1)
+            _log(f"Assembling CMD collection from {args.collection}")
+            _status("Assembling", 0, "Parsing CMD collection directory")
+            data = _cmd_assemble(str(coll_path))
+            assembled_json = coll_path / "collection.json"
+            assembled_json.write_text(json.dumps(data, indent=2, default=str), encoding="utf-8")
+            _log(f"CMD collection assembled: {len(data.get('sections_collected', []))} sections")
+        else:
+            _log(f"Loading collection from {args.collection}")
+            data = load_collection(args.collection)
     elif args.winrm_host:
         _log(f"Running remote collection against {args.winrm_host}")
         _status("Collecting", 0, f"WinRM to {args.winrm_host}")
