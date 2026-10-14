@@ -2,12 +2,12 @@
 setlocal enabledelayedexpansion
 REM ═══════════════════════════════════════════════════════════════
 REM  Dredge CMD Collector — Pure CMD backup for PS-blocked systems
-REM  Version: 1.3.4
+REM  Version: 1.7.0
 REM  Works on: Windows Server 2012+ / Windows 7+ (cmd.exe only)
 REM  Usage: dredge_collect_cmd.bat [OutputPath]
 REM ═══════════════════════════════════════════════════════════════
 
-set "DREDGE_VERSION=1.3.4"
+set "DREDGE_VERSION=1.7.0"
 set "HOSTNAME=%COMPUTERNAME%"
 
 REM --- Build timestamp ---
@@ -42,9 +42,10 @@ if errorlevel 1 (
 
 set "SECTIONS_FILE=%OUT_DIR%\_sections.txt"
 set "META_FILE=%OUT_DIR%\meta.txt"
+set "COLLECTOR_LOG=%OUT_DIR%\collector.log"
 set "SECT_COUNT=0"
 set "SECT_FAIL=0"
-set "TOTAL_SECTIONS=37"
+set "TOTAL_SECTIONS=38"
 
 echo.
 echo ===================================================================
@@ -57,6 +58,14 @@ echo   Output   : %OUT_DIR%
 echo   Started  : %TS_DISPLAY%
 echo   User     : %USERDOMAIN%\%USERNAME%
 echo.
+
+REM --- Initialize collector log ---
+echo Dredge CMD Collector v%DREDGE_VERSION%> "%COLLECTOR_LOG%"
+echo Hostname: %HOSTNAME%>> "%COLLECTOR_LOG%"
+echo User: %USERDOMAIN%\%USERNAME%>> "%COLLECTOR_LOG%"
+echo Started: %TS_DISPLAY%>> "%COLLECTOR_LOG%"
+echo Output: %OUT_DIR%>> "%COLLECTOR_LOG%"
+echo ===================================================================>> "%COLLECTOR_LOG%"
 
 REM --- Write meta ---
 echo Dredge CMD Collector> "%META_FILE%"
@@ -732,12 +741,73 @@ wmic logicaldisk list full /format:csv > "%OUT_DIR%\disk_storage\logicaldisk.csv
 wmic volume list full /format:csv > "%OUT_DIR%\disk_storage\volume.csv" 2>&1
 wmic diskdrive get Model,MediaType,Size,Status,InterfaceType /format:csv > "%OUT_DIR%\disk_storage\disk_summary.csv" 2>&1
 wmic partition list full /format:csv > "%OUT_DIR%\disk_storage\partitions.csv" 2>&1
+
+REM RAID controller probing — Dell PERC (omreport), LSI/Broadcom (MegaCli64/storcli), HP (hpssacli)
+where omreport >nul 2>&1
+if not errorlevel 1 (
+    echo [RAID] Dell OpenManage detected>> "%COLLECTOR_LOG%"
+    omreport storage controller > "%OUT_DIR%\disk_storage\raid_controller.txt" 2>&1
+    omreport storage vdisk controller=0 > "%OUT_DIR%\disk_storage\raid_vdisk.txt" 2>&1
+    omreport storage pdisk controller=0 > "%OUT_DIR%\disk_storage\raid_pdisk.txt" 2>&1
+    omreport storage battery controller=0 > "%OUT_DIR%\disk_storage\raid_battery.txt" 2>&1
+    omreport storage enclosure controller=0 > "%OUT_DIR%\disk_storage\raid_enclosure.txt" 2>&1
+)
+where MegaCli64 >nul 2>&1
+if not errorlevel 1 (
+    echo [RAID] MegaCli64 detected>> "%COLLECTOR_LOG%"
+    MegaCli64 -AdpAllInfo -aALL > "%OUT_DIR%\disk_storage\megacli_adapter.txt" 2>&1
+    MegaCli64 -LDInfo -Lall -aALL > "%OUT_DIR%\disk_storage\megacli_vdisk.txt" 2>&1
+    MegaCli64 -PDList -aALL > "%OUT_DIR%\disk_storage\megacli_pdisk.txt" 2>&1
+    MegaCli64 -AdpBbuCmd -aALL > "%OUT_DIR%\disk_storage\megacli_battery.txt" 2>&1
+)
+where perccli64 >nul 2>&1
+if not errorlevel 1 (
+    echo [RAID] perccli64 detected>> "%COLLECTOR_LOG%"
+    perccli64 /c0 show all > "%OUT_DIR%\disk_storage\perccli_controller.txt" 2>&1
+    perccli64 /c0/vall show all > "%OUT_DIR%\disk_storage\perccli_vdisk.txt" 2>&1
+    perccli64 /c0/eall/sall show all > "%OUT_DIR%\disk_storage\perccli_pdisk.txt" 2>&1
+)
+where storcli64 >nul 2>&1
+if not errorlevel 1 (
+    echo [RAID] storcli64 detected>> "%COLLECTOR_LOG%"
+    storcli64 /c0 show all > "%OUT_DIR%\disk_storage\storcli_controller.txt" 2>&1
+    storcli64 /c0/vall show all > "%OUT_DIR%\disk_storage\storcli_vdisk.txt" 2>&1
+    storcli64 /c0/eall/sall show all > "%OUT_DIR%\disk_storage\storcli_pdisk.txt" 2>&1
+)
+where hpssacli >nul 2>&1
+if not errorlevel 1 (
+    echo [RAID] HP Smart Storage detected>> "%COLLECTOR_LOG%"
+    hpssacli ctrl all show config detail > "%OUT_DIR%\disk_storage\hpssa_config.txt" 2>&1
+    hpssacli ctrl all show status > "%OUT_DIR%\disk_storage\hpssa_status.txt" 2>&1
+)
+REM Fallback: check common install paths for RAID tools
+if exist "C:\Program Files (x86)\Dell\SysMgt\oma\bin\omreport.exe" (
+    echo [RAID] Dell OpenManage at default path>> "%COLLECTOR_LOG%"
+    "C:\Program Files (x86)\Dell\SysMgt\oma\bin\omreport.exe" storage controller > "%OUT_DIR%\disk_storage\raid_controller.txt" 2>&1
+    "C:\Program Files (x86)\Dell\SysMgt\oma\bin\omreport.exe" storage vdisk controller=0 > "%OUT_DIR%\disk_storage\raid_vdisk.txt" 2>&1
+    "C:\Program Files (x86)\Dell\SysMgt\oma\bin\omreport.exe" storage pdisk controller=0 > "%OUT_DIR%\disk_storage\raid_pdisk.txt" 2>&1
+    "C:\Program Files (x86)\Dell\SysMgt\oma\bin\omreport.exe" storage battery controller=0 > "%OUT_DIR%\disk_storage\raid_battery.txt" 2>&1
+)
+if exist "C:\Program Files\MegaRAID\MegaCli\MegaCli64.exe" (
+    echo [RAID] MegaCli64 at default path>> "%COLLECTOR_LOG%"
+    "C:\Program Files\MegaRAID\MegaCli\MegaCli64.exe" -LDInfo -Lall -aALL > "%OUT_DIR%\disk_storage\megacli_vdisk.txt" 2>&1
+    "C:\Program Files\MegaRAID\MegaCli\MegaCli64.exe" -PDList -aALL > "%OUT_DIR%\disk_storage\megacli_pdisk.txt" 2>&1
+)
+
+REM Disk-specific Windows event log queries (errors, SMART, NTFS)
+wevtutil qe System /q:"*[System[Provider[@Name='disk'] or Provider[@Name='Ntfs'] or Provider[@Name='ntfs'] or Provider[@Name='storahci'] or Provider[@Name='stornvme'] or Provider[@Name='iaStor'] or Provider[@Name='megasas'] or Provider[@Name='percsas'] or Provider[@Name='percsas2'] or Provider[@Name='percsas3'] or Provider[@Name='Microsoft-Windows-StorageSpaces-Driver']]]" /c:500 /f:text /rd:true > "%OUT_DIR%\disk_storage\disk_events.txt" 2>&1
+wevtutil qe System /q:"*[System[(EventID=7 or EventID=9 or EventID=11 or EventID=15 or EventID=51 or EventID=52 or EventID=55 or EventID=98 or EventID=129 or EventID=137 or EventID=140 or EventID=153 or EventID=154)]]" /c:500 /f:text /rd:true > "%OUT_DIR%\disk_storage\disk_error_events.txt" 2>&1
+
+REM S.M.A.R.T. status via WMIC
+wmic /namespace:\\root\WMI path MSStorageDriver_FailurePredictStatus get Active,InstanceName,PredictFailure,Reason /format:csv > "%OUT_DIR%\disk_storage\smart_status.csv" 2>&1
+wmic /namespace:\\root\WMI path MSStorageDriver_FailurePredictData get InstanceName,VendorSpecific /format:csv > "%OUT_DIR%\disk_storage\smart_data.csv" 2>&1
+
 call :section_end "disk_storage"
 
 REM ═══════════════════════════════════════════════════════════════
 REM  Section 38: Hardware Inventory
 REM ═══════════════════════════════════════════════════════════════
-call :section_start "hardware_inventory" 37
+call :section_start "hardware_inventory" 38
 mkdir "%OUT_DIR%\hardware_inventory" 2>nul
 wmic cpu list full /format:csv > "%OUT_DIR%\hardware_inventory\cpu.csv" 2>&1
 wmic memorychip list full /format:csv > "%OUT_DIR%\hardware_inventory\memory.csv" 2>&1
@@ -780,6 +850,14 @@ echo   Output: %OUT_DIR%
 echo ===================================================================
 echo.
 
+REM --- Write summary to collector log ---
+echo ===================================================================>> "%COLLECTOR_LOG%"
+echo Collection Complete>> "%COLLECTOR_LOG%"
+echo Sections collected: !SECT_COUNT!>> "%COLLECTOR_LOG%"
+echo Sections failed: !SECT_FAIL!>> "%COLLECTOR_LOG%"
+echo Duration: !ELAPSED!s>> "%COLLECTOR_LOG%"
+echo Completed: %DATE% %TIME%>> "%COLLECTOR_LOG%"
+
 endlocal
 exit /b 0
 
@@ -794,10 +872,13 @@ set "SECT_IDX=%~2"
 set /a "SECT_PCT=(SECT_IDX * 100) / TOTAL_SECTIONS"
 for /f "tokens=1-3 delims=:." %%a in ("%TIME: =0%") do set "SECT_TS=%%a:%%b:%%c"
 echo [!SECT_TS!] [%SECT_PCT%%%] Collecting: %SECT_NAME%
+echo [!SECT_TS!] [%SECT_PCT%%%] Collecting: %SECT_NAME%>> "%COLLECTOR_LOG%"
 exit /b 0
 
 :section_end
 set "SECT_NAME=%~1"
+for /f "tokens=1-3 delims=:." %%a in ("%TIME: =0%") do set "END_TS=%%a:%%b:%%c"
 echo %SECT_NAME%=OK>> "%SECTIONS_FILE%"
+echo [!END_TS!] Completed: %SECT_NAME%>> "%COLLECTOR_LOG%"
 set /a "SECT_COUNT+=1"
 exit /b 0

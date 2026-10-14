@@ -32,7 +32,7 @@ param(
 )
 
 $ErrorActionPreference = "Continue"
-$DredgeVersion = "1.3.4"
+$DredgeVersion = "1.7.0"
 $StartTime = Get-Date
 
 # Language mode check — Constrained Language Mode blocks .NET types used throughout
@@ -3627,6 +3627,97 @@ function Collect-DiskStorage {
         $data["raid_controllers"] = @()
     }
 
+    # 10. Hardware RAID probing (omreport / MegaCli64 / perccli64 / storcli64)
+    $hw_raid = [ordered]@{ detected_cli = $null; virtual_drives = @(); physical_drives = @() }
+    $raidTools = @(
+        @{exe="omreport"; vd="storage vdisk controller=0"; pd="storage pdisk controller=0"; ctrl="storage controller"},
+        @{exe="MegaCli64"; vd="-LDInfo -Lall -aALL"; pd="-PDList -aALL"; ctrl="-AdpAllInfo -aALL"},
+        @{exe="perccli64"; vd="/c0/vall show all"; pd="/c0/eall/sall show all"; ctrl="/c0 show all"},
+        @{exe="storcli64"; vd="/c0/vall show all"; pd="/c0/eall/sall show all"; ctrl="/c0 show all"},
+        @{exe="hpssacli"; vd="ctrl all show config detail"; pd=""; ctrl="ctrl all show status"}
+    )
+    foreach ($rt in $raidTools) {
+        if (Get-Command $rt.exe -ErrorAction SilentlyContinue) {
+            $hw_raid["detected_cli"] = $rt.exe
+            try {
+                $hw_raid["controller_output"] = & $rt.exe $rt.ctrl.Split(" ") 2>&1 | Out-String
+                if ($rt.vd) { $hw_raid["vdisk_output"] = & $rt.exe $rt.vd.Split(" ") 2>&1 | Out-String }
+                if ($rt.pd) { $hw_raid["pdisk_output"] = & $rt.exe $rt.pd.Split(" ") 2>&1 | Out-String }
+            } catch {}
+            break
+        }
+    }
+    # Fallback: common install paths for Dell OMSA
+    if (-not $hw_raid["detected_cli"]) {
+        $omPaths = @(
+            "${env:ProgramFiles(x86)}\Dell\SysMgt\oma\bin\omreport.exe",
+            "${env:ProgramFiles}\Dell\SysMgt\oma\bin\omreport.exe"
+        )
+        foreach ($op in $omPaths) {
+            if (Test-Path $op) {
+                $hw_raid["detected_cli"] = "omreport"
+                try {
+                    $hw_raid["controller_output"] = & $op storage controller 2>&1 | Out-String
+                    $hw_raid["vdisk_output"] = & $op storage vdisk controller=0 2>&1 | Out-String
+                    $hw_raid["pdisk_output"] = & $op storage pdisk controller=0 2>&1 | Out-String
+                    $hw_raid["battery_output"] = & $op storage battery controller=0 2>&1 | Out-String
+                } catch {}
+                break
+            }
+        }
+    }
+    $data["hardware_raid"] = $hw_raid
+
+    # 11. Disk-specific event log errors (last 30 days)
+    $diskEvents = @()
+    $cutoff30d = (Get-Date).AddDays(-30)
+    $diskProviders = @('disk','Ntfs','ntfs','storahci','stornvme','iaStor','megasas','percsas','percsas2','percsas3','Microsoft-Windows-StorageSpaces-Driver')
+    $diskEventIds = @(7,9,11,15,51,52,55,98,129,137,140,153,154)
+    try {
+        $events = Get-WinEvent -FilterHashtable @{LogName='System'; ProviderName=$diskProviders; StartTime=$cutoff30d} -MaxEvents 500 -ErrorAction SilentlyContinue
+        foreach ($e in $events) {
+            $diskEvents += [ordered]@{
+                time      = $e.TimeCreated.ToString("o")
+                provider  = $e.ProviderName
+                id        = $e.Id
+                level     = switch ($e.Level) { 1 {"Critical"} 2 {"Error"} 3 {"Warning"} 4 {"Information"} default {"$($e.Level)"} }
+                message   = $e.Message.Substring(0, [math]::Min(500, $e.Message.Length))
+            }
+        }
+    } catch {}
+    try {
+        $events = Get-WinEvent -FilterHashtable @{LogName='System'; Id=$diskEventIds; StartTime=$cutoff30d} -MaxEvents 500 -ErrorAction SilentlyContinue
+        foreach ($e in $events) {
+            $existing = $diskEvents | Where-Object { $_.time -eq $e.TimeCreated.ToString("o") -and $_.id -eq $e.Id }
+            if (-not $existing) {
+                $diskEvents += [ordered]@{
+                    time      = $e.TimeCreated.ToString("o")
+                    provider  = $e.ProviderName
+                    id        = $e.Id
+                    level     = switch ($e.Level) { 1 {"Critical"} 2 {"Error"} 3 {"Warning"} 4 {"Information"} default {"$($e.Level)"} }
+                    message   = $e.Message.Substring(0, [math]::Min(500, $e.Message.Length))
+                }
+            }
+        }
+    } catch {}
+    $data["disk_event_errors"] = $diskEvents
+
+    # 12. S.M.A.R.T. status
+    try {
+        $smart = @()
+        Get-CimInstance -Namespace root\WMI -ClassName MSStorageDriver_FailurePredictStatus -ErrorAction Stop | ForEach-Object {
+            $smart += [ordered]@{
+                instance_name   = $_.InstanceName
+                predict_failure = $_.PredictFailure
+                reason          = $_.Reason
+                active          = $_.Active
+            }
+        }
+        $data["smart_status"] = $smart
+    } catch {
+        $data["smart_status"] = @()
+    }
+
     return $data
 }
 
@@ -3833,6 +3924,15 @@ function Collect-HardwareInventory {
 # Main execution
 # ═══════════════════════════════════════════════════════════════
 
+# Start transcript logging for post-mortem analysis
+$TranscriptPath = Join-Path $OutputPath "collector_transcript.log"
+try {
+    Start-Transcript -Path $TranscriptPath -Force | Out-Null
+    $TranscriptActive = $true
+} catch {
+    $TranscriptActive = $false
+}
+
 if (-not $Quiet) {
     Write-Host ""
     Write-Host "╔══════════════════════════════════════════════════════╗"
@@ -3974,6 +4074,11 @@ if (-not $Quiet) {
         }
         Write-Host ""
     }
+}
+
+# Stop transcript
+if ($TranscriptActive) {
+    try { Stop-Transcript | Out-Null } catch {}
 }
 
 # Return output path for programmatic callers

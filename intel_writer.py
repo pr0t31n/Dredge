@@ -17,6 +17,8 @@ def _build_disk_storage_report(data):
     report = {
         "physical_disks": [],
         "logical_disks": [],
+        "partitions": [],
+        "volumes": [],
         "storage_spaces": {
             "pools": [],
             "virtual_disks": [],
@@ -45,12 +47,39 @@ def _build_disk_storage_report(data):
             continue
         report["logical_disks"].append({
             "drive": _safe(d.get("device_id")),
-            "filesystem": _safe(d.get("file_system")),
+            "filesystem": _safe(d.get("filesystem")),
             "size_gb": d.get("size_gb", 0),
-            "free_gb": d.get("free_gb", 0),
+            "free_gb": d.get("free_space_gb", 0),
             "percent_free": d.get("percent_free", 0),
             "volume": _safe(d.get("volume_name")),
             "type": _safe(d.get("drive_type")),
+        })
+
+    for p in ds.get("partitions", []):
+        if not isinstance(p, dict):
+            continue
+        report["partitions"].append({
+            "device": _safe(p.get("device_id")),
+            "disk_index": p.get("disk_index"),
+            "partition_index": p.get("partition_index"),
+            "size_gb": p.get("size_gb", 0),
+            "bootable": p.get("bootable", False),
+            "boot_partition": p.get("boot_partition", False),
+            "primary": p.get("primary_partition", False),
+            "type": _safe(p.get("type")),
+        })
+
+    for v in ds.get("volumes", []):
+        if not isinstance(v, dict):
+            continue
+        report["volumes"].append({
+            "drive_letter": _safe(v.get("drive_letter")),
+            "capacity_gb": v.get("capacity_gb", 0),
+            "free_gb": v.get("free_space_gb", 0),
+            "filesystem": _safe(v.get("filesystem")),
+            "label": _safe(v.get("label")),
+            "dirty": v.get("dirty_bit", False),
+            "serial": _safe(v.get("serial_number")),
         })
 
     for p in ds.get("storage_pools", []):
@@ -179,6 +208,7 @@ def _build_hardware_report(data):
 
     report = {
         "baseboard": None,
+        "bios": None,
         "processors": [],
         "memory": {
             "total_gb": hw.get("memory_total_gb", 0),
@@ -189,6 +219,7 @@ def _build_hardware_report(data):
         "gpu_adapters": [],
         "network_adapters": [],
         "usb_devices": [],
+        "scsi_controllers": [],
         "pci_devices": [],
         "batteries": [],
         "power_plan": hw.get("active_power_plan"),
@@ -202,6 +233,16 @@ def _build_hardware_report(data):
             "serial": _safe(bb.get("serial_number")),
             "version": _safe(bb.get("version")),
             "status": _safe(bb.get("status")),
+        }
+
+    bi = hw.get("bios")
+    if isinstance(bi, dict):
+        report["bios"] = {
+            "manufacturer": _safe(bi.get("manufacturer")),
+            "name": _safe(bi.get("name")),
+            "version": _safe(bi.get("version")),
+            "release_date": _safe(bi.get("release_date")),
+            "smbios_version": _safe(bi.get("smbios_version")),
         }
 
     for cpu in hw.get("processors", []):
@@ -263,6 +304,15 @@ def _build_hardware_report(data):
                 "class": _safe(u.get("class")),
                 "manufacturer": _safe(u.get("manufacturer")),
                 "status": _safe(u.get("status")),
+            })
+
+    for sc in hw.get("scsi_controllers", []):
+        if isinstance(sc, dict):
+            report["scsi_controllers"].append({
+                "name": _safe(sc.get("name")),
+                "manufacturer": _safe(sc.get("manufacturer")),
+                "driver": _safe(sc.get("driver_name")),
+                "status": _safe(sc.get("status")),
             })
 
     for p in hw.get("pci_devices", []):

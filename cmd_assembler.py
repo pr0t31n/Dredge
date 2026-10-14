@@ -25,6 +25,18 @@ def _read(path, encoding=None):
     p = Path(path)
     if not p.exists():
         return ""
+    try:
+        raw = p.read_bytes()
+        if raw[:2] in (b'\xff\xfe', b'\xfe\xff'):
+            return raw.decode('utf-16', errors='replace')
+    except Exception:
+        pass
+    raw = p.read_bytes()
+    if raw[:2] == b"\xff\xfe" or raw[:2] == b"\xfe\xff":
+        try:
+            return raw.decode("utf-16", errors="replace")
+        except Exception:
+            pass
     for enc in ([encoding] if encoding else []) + ["utf-8", "cp1252", "cp437", "latin-1"]:
         try:
             return p.read_text(encoding=enc, errors="replace")
@@ -1196,14 +1208,35 @@ def _assemble_disk_storage(d):
             size_gb = round(int(size) / (1024 ** 3), 1) if size else 0
         except (ValueError, TypeError):
             size_gb = 0
+        bps = row.get("BytesPerSector", "")
+        try:
+            bps_int = int(bps) if bps else None
+        except (ValueError, TypeError):
+            bps_int = None
+        parts = row.get("Partitions", "")
+        try:
+            parts_int = int(parts) if parts else 0
+        except (ValueError, TypeError):
+            parts_int = 0
         physical_disks.append({
             "model": model,
             "size_gb": size_gb,
             "status": row.get("Status", ""),
             "interface_type": row.get("InterfaceType", ""),
             "media_type": row.get("MediaType", ""),
+            "device_id": row.get("DeviceID", ""),
+            "serial_number": row.get("Signature", ""),
+            "firmware_revision": row.get("FirmwareRevision", ""),
+            "bytes_per_sector": bps_int,
+            "partitions_count": parts_int,
+            "scsi_bus": row.get("SCSIBus", ""),
+            "scsi_port": row.get("SCSIPort", ""),
+            "scsi_target": row.get("SCSITargetId", ""),
+            "index": row.get("Index", ""),
+            "manufacturer": row.get("Manufacturer", ""),
         })
     result["physical_disks"] = physical_disks
+
     ld_rows = _parse_wmic_csv(_read(d / "logicaldisk.csv"))
     logical_disks = []
     for row in ld_rows:
@@ -1230,31 +1263,258 @@ def _assemble_disk_storage(d):
             "percent_free": pct_free,
             "filesystem": row.get("FileSystem", ""),
             "drive_type": dtype,
+            "volume_name": row.get("VolumeName", ""),
+            "volume_serial": row.get("VolumeSerialNumber", ""),
+            "provider": row.get("ProviderName", ""),
+            "compressed": row.get("Compressed", "").upper() == "TRUE",
         })
     result["logical_disks"] = logical_disks
+
+    part_rows = _parse_wmic_csv(_read(d / "partitions.csv"))
+    partitions = []
+    for row in part_rows:
+        dev = row.get("DeviceID", "")
+        if not dev:
+            continue
+        all_vals = " ".join(str(v) for v in row.values())
+        dm = re.search(r"Disk\s*#(\d+)", all_vals)
+        pm = re.search(r"Partition\s*#(\d+)", all_vals)
+        di_int = int(dm.group(1)) if dm else None
+        pi_int = int(pm.group(1)) if pm else None
+        size_candidates = []
+        for v in row.values():
+            try:
+                iv = int(v)
+                if iv > 100_000_000:
+                    size_candidates.append(iv)
+            except (ValueError, TypeError):
+                pass
+        psize_gb = 0
+        if size_candidates:
+            psize_gb = round(max(size_candidates) / (1024 ** 3), 1)
+        partitions.append({
+            "device_id": f"Disk #{di_int}, Partition #{pi_int}"
+                if di_int is not None and pi_int is not None else dev,
+            "disk_index": di_int,
+            "partition_index": pi_int,
+            "size_gb": psize_gb,
+            "bootable": "TRUE" in (row.get("Bootable", "") + row.get("BootPartition", "")).upper()
+                and "BOOT" in all_vals.upper(),
+            "boot_partition": row.get("BootPartition", "").upper() == "TRUE",
+            "primary_partition": row.get("PrimaryPartition", "").upper() == "TRUE",
+            "type": row.get("Description", row.get("Type", "")),
+            "description": row.get("Description", ""),
+        })
+    result["partitions"] = partitions
+
+    vol_rows = _parse_wmic_csv(_read(d / "volume.csv"))
+    volumes = []
+    for row in vol_rows:
+        dev = row.get("DeviceID", "")
+        if not dev:
+            continue
+        vcap = row.get("Capacity", "0")
+        vfree = row.get("FreeSpace", "0")
+        try:
+            vcap_bytes = int(vcap) if vcap else 0
+            vfree_bytes = int(vfree) if vfree else 0
+            vcap_gb = round(vcap_bytes / (1024 ** 3), 1) if vcap_bytes else 0
+            vfree_gb = round(vfree_bytes / (1024 ** 3), 1) if vfree_bytes else 0
+        except (ValueError, TypeError):
+            vcap_gb = vfree_gb = 0
+        volumes.append({
+            "device_id": dev,
+            "drive_letter": row.get("DriveLetter", ""),
+            "capacity_gb": vcap_gb,
+            "free_space_gb": vfree_gb,
+            "filesystem": row.get("FileSystem", ""),
+            "label": row.get("Label", ""),
+            "dirty_bit": row.get("DirtyBitSet", "").upper() == "TRUE",
+            "serial_number": row.get("SerialNumber", ""),
+            "compressed": row.get("Compressed", "").upper() == "TRUE",
+            "automount": row.get("Automount", "").upper() == "TRUE",
+        })
+    result["volumes"] = volumes
+
     result["storage_physical_disks"] = []
     result["storage_pools"] = []
     result["virtual_disks"] = []
     result["disks"] = []
     result["hardware_raid"] = {}
     result["raid_controllers"] = []
-    result["disk_event_errors"] = []
+
+    disk_events = []
+    for evt_file in ("disk_error_events.txt", "disk_events.txt"):
+        evt_text = _read(d / evt_file)
+        if evt_text:
+            parsed = _parse_wevtutil_text(evt_text)
+            for ev in parsed:
+                if isinstance(ev, dict) and ev not in disk_events:
+                    prov = str(ev.get("source", ev.get("provider_name", ""))).lower()
+                    eid = ev.get("event_id", "")
+                    ev["provider"] = prov if prov else str(ev.get("provider", ""))
+                    ev["id"] = eid
+                    ev["message"] = ev.get("description", ev.get("message", ""))
+                    disk_events.append(ev)
+    result["disk_event_errors"] = disk_events
+
+    raid_txt = _read(d / "raid_controller.txt")
+    if raid_txt and "ERROR" not in raid_txt[:100].upper():
+        result["hardware_raid"]["detected_cli"] = "omreport"
+        result["hardware_raid"]["raw_output"] = raid_txt[:5000]
+    mega_txt = _read(d / "megacli_vdisk.txt")
+    if mega_txt and "ERROR" not in mega_txt[:100].upper():
+        result["hardware_raid"]["detected_cli"] = "MegaCli64"
+        result["hardware_raid"]["raw_output"] = mega_txt[:5000]
+    perc_txt = _read(d / "perccli_controller.txt")
+    if perc_txt and "ERROR" not in perc_txt[:100].upper():
+        result["hardware_raid"]["detected_cli"] = "perccli64"
+        result["hardware_raid"]["raw_output"] = perc_txt[:5000]
+    stor_txt = _read(d / "storcli_controller.txt")
+    if stor_txt and "ERROR" not in stor_txt[:100].upper():
+        result["hardware_raid"]["detected_cli"] = "storcli64"
+        result["hardware_raid"]["raw_output"] = stor_txt[:5000]
+
     return result
 
 
 def _assemble_hardware_inventory(d):
+    _ARCH_MAP = {"0": "x86", "5": "ARM", "6": "IA-64", "9": "x64"}
+    _MEM_TYPE = {
+        "0": "Unknown", "1": "Other", "2": "DRAM", "3": "Sync DRAM",
+        "4": "Cache DRAM", "5": "EDO", "6": "EDRAM", "7": "VRAM",
+        "8": "SRAM", "9": "RAM", "10": "ROM", "11": "Flash",
+        "12": "EEPROM", "13": "FEPROM", "14": "EPROM", "15": "CDRAM",
+        "16": "3DRAM", "17": "SDRAM", "18": "SGRAM", "19": "RDRAM",
+        "20": "DDR", "21": "DDR2", "22": "DDR2 FB-DIMM",
+        "24": "DDR3", "26": "DDR4", "30": "LPDDR4", "34": "DDR5",
+    }
+    _FORM_FACTOR = {
+        "0": "Unknown", "1": "Other", "2": "SIP", "3": "DIP",
+        "4": "ZIP", "5": "SOJ", "6": "Proprietary", "7": "SIMM",
+        "8": "DIMM", "9": "TSOP", "10": "PGA", "11": "RIMM",
+        "12": "SODIMM", "13": "SRIMM", "14": "SMD", "15": "SSMP",
+        "16": "QFP", "17": "TQFP", "18": "SOIC", "19": "LCC",
+        "20": "PLCC", "21": "BGA", "22": "FPBGA", "23": "LGA",
+    }
+
     result = {}
+
+    bb_rows = _parse_wmic_csv(_read(d / "baseboard.csv"))
+    if bb_rows:
+        row = bb_rows[0]
+        result["baseboard"] = {
+            "manufacturer": row.get("Manufacturer", ""),
+            "product": row.get("Product", ""),
+            "serial_number": row.get("SerialNumber", ""),
+            "version": row.get("Version", ""),
+            "status": row.get("Status", ""),
+            "model": row.get("Model", ""),
+        }
+    else:
+        result["baseboard"] = None
+
+    bios_rows = _parse_wmic_csv(_read(d / "bios.csv"))
+    if bios_rows:
+        row = bios_rows[0]
+        result["bios"] = {
+            "manufacturer": row.get("Manufacturer", ""),
+            "name": row.get("Name", ""),
+            "version": row.get("Version", ""),
+            "release_date": row.get("ReleaseDate", ""),
+            "serial_number": row.get("SerialNumber", ""),
+            "smbios_version": row.get("SMBIOSBIOSVersion", ""),
+            "status": row.get("Status", ""),
+        }
+    else:
+        result["bios"] = None
+
+    cpu_rows = _parse_wmic_csv(_read(d / "cpu.csv"))
+    processors = []
+    for row in cpu_rows:
+        name = row.get("Name", "")
+        if not name:
+            continue
+        cores = row.get("NumberOfCores", "")
+        lp = row.get("NumberOfLogicalProcessors", "")
+        mcs = row.get("MaxClockSpeed", "")
+        l2 = row.get("L2CacheSize", "")
+        l3 = row.get("L3CacheSize", "")
+        arch_code = row.get("Architecture", "")
+        try:
+            cores_int = int(cores) if cores else None
+        except (ValueError, TypeError):
+            cores_int = None
+        try:
+            lp_int = int(lp) if lp else None
+        except (ValueError, TypeError):
+            lp_int = None
+        try:
+            mcs_int = int(mcs) if mcs else None
+        except (ValueError, TypeError):
+            mcs_int = None
+        try:
+            l2_int = int(l2) if l2 else None
+        except (ValueError, TypeError):
+            l2_int = None
+        try:
+            l3_int = int(l3) if l3 else None
+        except (ValueError, TypeError):
+            l3_int = None
+        processors.append({
+            "name": name.strip(),
+            "cores": cores_int,
+            "logical_processors": lp_int,
+            "max_clock_speed_mhz": mcs_int,
+            "architecture": _ARCH_MAP.get(arch_code, arch_code),
+            "socket": row.get("SocketDesignation", ""),
+            "manufacturer": row.get("Manufacturer", ""),
+            "l2_cache_kb": l2_int,
+            "l3_cache_kb": l3_int,
+            "virtualization_enabled": row.get(
+                "VirtualizationFirmwareEnabled", "").upper() == "TRUE",
+            "status": row.get("Status", ""),
+            "device_id": row.get("DeviceID", ""),
+            "current_clock_speed_mhz": mcs_int,
+        })
+    result["processors"] = processors
+
     mem_rows = _parse_wmic_csv(_read(d / "memory.csv"))
     total_gb = 0
     slot_count = len(mem_rows)
+    memory_modules = []
     for row in mem_rows:
         cap = row.get("Capacity", "0")
         try:
-            total_gb += int(cap) / (1024 ** 3) if cap else 0
+            cap_bytes = int(cap) if cap else 0
+            total_gb += cap_bytes / (1024 ** 3)
+            cap_gb = round(cap_bytes / (1024 ** 3), 1)
         except (ValueError, TypeError):
-            pass
+            cap_gb = 0
+        spd = row.get("Speed", "")
+        try:
+            spd_int = int(spd) if spd else None
+        except (ValueError, TypeError):
+            spd_int = None
+        mt = row.get("MemoryType", "")
+        ff = row.get("FormFactor", "")
+        mfr = row.get("Manufacturer", "")
+        if mfr:
+            mfr = mfr.strip()
+        memory_modules.append({
+            "bank_label": row.get("BankLabel", ""),
+            "device_locator": row.get("DeviceLocator", "").strip(),
+            "capacity_gb": cap_gb,
+            "speed_mhz": spd_int,
+            "memory_type": _MEM_TYPE.get(mt, mt),
+            "form_factor": _FORM_FACTOR.get(ff, ff),
+            "manufacturer": mfr,
+            "part_number": row.get("PartNumber", "").strip(),
+            "serial_number": row.get("SerialNumber", ""),
+        })
     result["memory_total_gb"] = round(total_gb, 1)
     result["memory_slot_count"] = slot_count
+    result["memory_modules"] = memory_modules
     result["memory_ecc"] = None
     for row in mem_rows:
         ecc = row.get("TotalWidth", "")
@@ -1265,11 +1525,85 @@ def _assemble_hardware_inventory(d):
             except (ValueError, TypeError):
                 pass
             break
-    result["gpu_adapters"] = []
-    result["usb_devices"] = []
+
+    gpu_rows = _parse_wmic_csv(_read(d / "gpu.csv"))
+    gpu_adapters = []
+    for row in gpu_rows:
+        name = row.get("Name", "")
+        if not name:
+            continue
+        vram = row.get("AdapterRAM", "0")
+        try:
+            vram_gb = round(int(vram) / (1024 ** 3), 1) if vram else 0
+        except (ValueError, TypeError):
+            vram_gb = 0
+        hres = row.get("CurrentHorizontalResolution", "")
+        vres = row.get("CurrentVerticalResolution", "")
+        res = f"{hres}x{vres}" if hres and vres else ""
+        gpu_adapters.append({
+            "name": name,
+            "adapter_ram_gb": vram_gb,
+            "driver_version": row.get("DriverVersion", ""),
+            "driver_date": row.get("DriverDate", ""),
+            "status": row.get("Status", ""),
+            "current_resolution": res,
+        })
+    result["gpu_adapters"] = gpu_adapters
+
+    usb_rows = _parse_wmic_csv(_read(d / "usb.csv"))
+    usb_devices = []
+    for row in usb_rows:
+        name = row.get("Name", "")
+        if not name:
+            continue
+        usb_devices.append({
+            "name": name,
+            "device_id": row.get("DeviceID", ""),
+            "manufacturer": row.get("Manufacturer", ""),
+            "status": row.get("Status", ""),
+            "class": row.get("ClassGuid", ""),
+        })
+    result["usb_devices"] = usb_devices
+
     nic_rows = _parse_wmic_csv(_read(d / "nic.csv"))
-    result["network_adapters"] = [{"name": r.get("Name", ""),
-                                    "mac": r.get("MACAddress", "")} for r in nic_rows if r.get("Name")]
+    network_adapters = []
+    for r in nic_rows:
+        name = r.get("Name", "")
+        if not name:
+            continue
+        spd = r.get("Speed", "")
+        try:
+            spd_mbps = round(int(spd) / 1_000_000) if spd else None
+        except (ValueError, TypeError):
+            spd_mbps = None
+        mac = r.get("MACAddress", "")
+        network_adapters.append({
+            "name": name,
+            "mac": mac,
+            "mac_address": mac,
+            "speed_mbps": spd_mbps,
+            "adapter_type": r.get("AdapterType", ""),
+            "manufacturer": r.get("Manufacturer", ""),
+            "status": r.get("Status", ""),
+            "net_connection_id": r.get("NetConnectionID", ""),
+            "service_name": r.get("ServiceName", ""),
+        })
+    result["network_adapters"] = network_adapters
+
+    scsi_rows = _parse_wmic_csv(_read(d / "scsi.csv"))
+    scsi_controllers = []
+    for row in scsi_rows:
+        name = row.get("Name", "")
+        if not name:
+            continue
+        scsi_controllers.append({
+            "name": name,
+            "manufacturer": row.get("Manufacturer", ""),
+            "driver_name": row.get("DriverName", ""),
+            "status": row.get("Status", ""),
+        })
+    result["scsi_controllers"] = scsi_controllers
+
     return result
 
 
