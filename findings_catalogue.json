@@ -7340,6 +7340,88 @@
     ]
   },
   {
+    "id": "DR-HDN-045",
+    "title": "SMB Signing Bypass: Re-Authentication Identity Check Missing",
+    "aliases": [
+      "SMB Re-Auth Bypass",
+      "SMB Session Swap",
+      "CVE-2026-26128"
+    ],
+    "source_tools": [
+      "dredge"
+    ],
+    "risk": "HIGH",
+    "description": "SMB signing is enforced but the server does not verify that a re-authenticating session belongs to the same identity. An attacker who opens a signed session with their own credentials can re-authenticate it using a relayed privileged identity, retaining their signing key while gaining the victim's privileges.",
+    "impact": "SMB signing alone does not prevent relay attacks on this host. An attacker with network position and the ability to coerce authentication (LLMNR/mDNS poisoning, PetitPotam, PrinterBug) can relay privileged credentials even against signing-enforced targets. Domain Controllers are the highest-value target for this technique.",
+    "cwe": [
+      "CWE-287",
+      "CWE-384"
+    ],
+    "cve_examples": [
+      "CVE-2026-26128",
+      "CVE-2026-24294"
+    ],
+    "cvss_v3_base": 7.5,
+    "cvss_vector": "CVSS:3.1/AV:N/AC:H/PR:L/UI:N/S:U/C:H/I:H/A:H",
+    "nessus_plugin_ids": [],
+    "qualys_qids": [],
+    "owasp_web": "",
+    "owasp_api": "",
+    "nist_csf2": [
+      "PR.AC-3",
+      "PR.AC-7"
+    ],
+    "nist_800_53": [
+      "AC-3",
+      "IA-9",
+      "SC-23"
+    ],
+    "nist_800_171": [
+      "3.5.1",
+      "3.5.2"
+    ],
+    "pci_dss_4": [
+      "2.2.7"
+    ],
+    "iso_27001": [
+      "A.8.20"
+    ],
+    "iso_27002": [
+      "8.20"
+    ],
+    "soc2": [
+      "CC6.1"
+    ],
+    "hitrust": [],
+    "gdpr": [],
+    "mitre_attack": [
+      {
+        "technique": "T1557.001",
+        "tactic": "Credential Access",
+        "name": "LLMNR/NBT-NS Poisoning and SMB Relay"
+      },
+      {
+        "technique": "T1187",
+        "tactic": "Credential Access",
+        "name": "Forced Authentication"
+      }
+    ],
+    "searchsploit_terms": [
+      "smb relay",
+      "smb signing bypass"
+    ],
+    "metasploit_modules": [],
+    "kev": false,
+    "remediation_brief": "Install KB5124008 (September 2026 cumulative update) or later. This update adds a same-identity check on SMB session re-authentication. Verify with: NetExec reauth_swap module or patchcheck.py from the reauthx toolkit.",
+    "remediation_component": "Network",
+    "remediation_category": "Access Control",
+    "remediation_effort": "Easy",
+    "validation_tools": [
+      "netexec reauth_swap",
+      "reauthx patchcheck.py"
+    ]
+  },
+  {
     "id": "DR-NET-001",
     "title": "Network: Suspicious Outbound Connection",
     "aliases": [

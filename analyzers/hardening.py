@@ -114,6 +114,57 @@ class HardeningAnalyzer(BaseAnalyzer):
                 mitre_attack=[{"technique": "T1557.001", "tactic": "Credential Access",
                                "name": "LLMNR/NBT-NS Poisoning and SMB Relay"}],
             )
+        if signing is not None and int(signing) == 1:
+            _patched = False
+            wu = self._get_section("windows_update", {})
+            build = self.os_info.get("os_build", 0)
+            for entry in wu.get("update_history", []):
+                if entry.get("result_code") != "Succeeded":
+                    continue
+                kb = entry.get("kb", "")
+                if kb == "KB5124008":
+                    _patched = True
+                    break
+                d = entry.get("date", "")
+                if d and d >= "2026-09-08" and "Cumulative Update" in entry.get("title", ""):
+                    _patched = True
+                    break
+            if not _patched:
+                self._add_finding(
+                    "DR-HDN-045",
+                    "SMB Signing Bypass: Re-Authentication Identity Check Missing",
+                    "HIGH",
+                    "SMB signing is enforced but the server does not verify that a "
+                    "re-authenticating session belongs to the same identity. An attacker "
+                    "who opens a signed session with their own credentials can re-authenticate "
+                    "it using a relayed privileged identity, retaining their signing key while "
+                    "gaining the victim's privileges.",
+                    "SMB signing alone does not prevent relay attacks on this host. An attacker "
+                    "with network position and the ability to coerce authentication (LLMNR/mDNS "
+                    "poisoning, PetitPotam, PrinterBug) can relay privileged credentials even "
+                    "against signing-enforced targets. Domain Controllers are the highest-value "
+                    "target for this technique.",
+                    "Install KB5124008 (September 2026 cumulative update) or later. This update "
+                    "adds a same-identity check on SMB session re-authentication. Verify with: "
+                    "NetExec reauth_swap module or patchcheck.py from the reauthx toolkit.",
+                    output=f"RequireSecuritySignature: {signing}\nKB5124008 installed: No\nOS build: {build}",
+                    remediation_effort="Easy",
+                    remediation_component="Network",
+                    remediation_category="Access Control",
+                    cwe=["CWE-287", "CWE-384"],
+                    cvss_score=7.5,
+                    cvss_vector="CVSS:3.1/AV:N/AC:H/PR:L/UI:N/S:U/C:H/I:H/A:H",
+                    mitre_attack=[
+                        {"technique": "T1557.001", "tactic": "Credential Access",
+                         "name": "LLMNR/NBT-NS Poisoning and SMB Relay"},
+                        {"technique": "T1187", "tactic": "Credential Access",
+                         "name": "Forced Authentication"},
+                    ],
+                    nist_800_53=["AC-3", "IA-9", "SC-23"],
+                    pci_dss_4=["2.2.7"],
+                    service="smb",
+                    confidence="Firm",
+                )
 
     def _check_ntlm(self):
         lm_compat = self._reg("LmCompatibilityLevel")
