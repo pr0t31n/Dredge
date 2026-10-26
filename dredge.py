@@ -12,6 +12,7 @@ from pathlib import Path
 VERSION = Path(__file__).resolve().parent.joinpath("VERSION").read_text().strip()
 
 MANAGED = os.environ.get("DREDGE_MANAGED") == "1" or os.environ.get("CRUCIBLE_MANAGED") == "1"
+_CP_FINDING = "__CRUCIBLE_FINDING__:"
 
 try:
     _sp = "/opt/pr0t31n/shared"
@@ -225,6 +226,26 @@ def write_output(findings, summary, output_dir, client_short=None, data=None):
     write_findings_json(findings, findings_json)
     write_findings_csv(findings, findings_csv)
     summary_json.write_text(json.dumps(summary, indent=2), encoding="utf-8")
+
+    if MANAGED:
+        for _f in findings:
+            try:
+                print(_CP_FINDING + json.dumps({
+                    "title": _f.get("title", ""),
+                    "ip": _f.get("ip", ""),
+                    "port": _f.get("port", 0),
+                    "hostname": _f.get("hostname", ""),
+                    "risk": (_f.get("risk") or "INFO").upper(),
+                    "description": _f.get("description", ""),
+                    "sources": _f.get("sources", "dredge"),
+                    "service": _f.get("service", ""),
+                    "affected": _f.get("affected", ""),
+                    "cves": _f.get("cves", ""),
+                    "output_file": _f.get("output_file", ""),
+                    "remediation": _f.get("remediation", ""),
+                }, ensure_ascii=False), flush=True)
+            except Exception:
+                pass
 
     if _us:
         try:
