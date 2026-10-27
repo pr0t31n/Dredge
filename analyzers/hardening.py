@@ -40,6 +40,13 @@ class HardeningAnalyzer(BaseAnalyzer):
         self._check_audit_subcategories()
         self._check_dangerous_user_rights()
         self._check_legacy_audit_override()
+        self._check_smb_encryption()
+        self._check_wef()
+        self._check_removable_storage()
+        self._check_expanded_audit_subcategories()
+        self._check_defender_detailed()
+        self._check_dns_client()
+        self._check_cis_baseline()
         return self.findings
 
     def _reg(self, key, default=None):
@@ -996,3 +1003,441 @@ class HardeningAnalyzer(BaseAnalyzer):
                 remediation_effort="Easy",
                 nist_800_53=["AU-2", "AU-12"],
             )
+
+    # ------------------------------------------------------------------ #
+    # DR-HDN-046  SMB Encryption
+    # ------------------------------------------------------------------ #
+    def _check_smb_encryption(self):
+        encrypt = self._reg("SMBServer_EncryptData")
+        reject = self._reg("SMBServer_RejectUnencryptedAccess")
+        if encrypt is not None and int(encrypt) != 1:
+            self._add_finding(
+                "DR-HDN-046",
+                "Network Hardening: SMB Encryption Not Enabled", "MEDIUM",
+                "SMB traffic encryption is not enabled on the server. All file "
+                "share and IPC traffic is transmitted in cleartext on the wire.",
+                "Without SMB encryption, an attacker with network access can "
+                "capture file contents, credentials in transit, and sensitive "
+                "data from shared folders using passive sniffing.",
+                "Enable SMB encryption: Set-SmbServerConfiguration "
+                "-EncryptData $true. For per-share encryption: "
+                "Set-SmbShare -Name <share> -EncryptData $true.",
+                output=f"EncryptData: {encrypt}",
+                remediation_effort="Easy",
+                remediation_category="Network Security",
+                mitre_attack=[{"technique": "T1040", "tactic": "Credential Access",
+                               "name": "Network Sniffing"}],
+                nist_800_53=["SC-8", "SC-13"],
+            )
+        if reject is not None and int(reject) != 1 and encrypt is not None and int(encrypt) == 1:
+            self._add_finding(
+                "DR-HDN-047",
+                "Network Hardening: SMB Unencrypted Access Not Rejected", "LOW",
+                "SMB encryption is enabled but the server does not reject "
+                "connections from clients that do not support encryption.",
+                "Clients that do not support SMB3 encryption can still connect "
+                "with unencrypted SMB2/SMB3, negating the encryption policy "
+                "for those sessions.",
+                "Enable RejectUnencryptedAccess: Set-SmbServerConfiguration "
+                "-RejectUnencryptedAccess $true. Verify all clients support "
+                "SMB3 encryption before enabling.",
+                output=f"EncryptData: {encrypt}, RejectUnencryptedAccess: {reject}",
+                remediation_effort="Easy",
+                remediation_category="Network Security",
+                nist_800_53=["SC-8"],
+            )
+
+    # ------------------------------------------------------------------ #
+    # DR-HDN-048  Windows Event Forwarding
+    # ------------------------------------------------------------------ #
+    def _check_wef(self):
+        wef = self._get_section("wef_config", {})
+        if not isinstance(wef, dict):
+            return
+        service_status = wef.get("service_status", "")
+        subscriptions = wef.get("subscriptions", [])
+        if not service_status:
+            return
+        if service_status.lower() != "running":
+            self._add_finding(
+                "DR-HDN-048",
+                "Monitoring: Windows Event Forwarding Not Active", "MEDIUM",
+                "The Windows Event Collector (WEC) service is not running. "
+                "Event forwarding subscriptions cannot receive events.",
+                "Without WEF, security events remain on individual endpoints "
+                "and are lost when disk space runs out or when an attacker "
+                "clears local logs. Centralised collection is critical for "
+                "SIEM-based detection and incident response.",
+                "Enable WEC: wecutil qc. Configure subscriptions via Group "
+                "Policy (Computer Configuration > Administrative Templates > "
+                "Windows Components > Event Forwarding).",
+                output=f"WEC service: {service_status}",
+                remediation_effort="Moderate",
+                remediation_category="Monitoring",
+                nist_800_53=["AU-4", "AU-6", "SI-4"],
+                nist_csf2=["DE.CM-1"],
+            )
+        elif isinstance(subscriptions, list) and len(subscriptions) == 0:
+            self._add_finding(
+                "DR-HDN-049",
+                "Monitoring: No WEF Subscriptions Configured", "LOW",
+                "The Windows Event Collector service is running but no event "
+                "subscriptions are configured.",
+                "WEC is enabled but has no subscriptions to forward events "
+                "to a collector. Security events are not being centralised.",
+                "Create WEF subscriptions using wecutil cs <subscription.xml> "
+                "or via Group Policy. Forward at minimum: Security log, "
+                "Sysmon, PowerShell, and AppLocker events.",
+                remediation_effort="Moderate",
+                remediation_category="Monitoring",
+                nist_800_53=["AU-4", "AU-6"],
+            )
+
+    # ------------------------------------------------------------------ #
+    # DR-HDN-050  Removable Storage Policy
+    # ------------------------------------------------------------------ #
+    def _check_removable_storage(self):
+        reg = self._get_section("registry_hardening", {})
+        if not isinstance(reg, dict):
+            return
+        removable = reg.get("removable_storage", {})
+        if not isinstance(removable, dict):
+            return
+        deny_all = removable.get("Deny_All")
+        deny_write = removable.get("Deny_Write")
+        deny_read = removable.get("Deny_Read")
+        deny_execute = removable.get("Deny_Execute")
+        if deny_all is not None and int(deny_all) == 1:
+            return
+        issues = []
+        if deny_write is None or int(deny_write) != 1:
+            issues.append("Write access: allowed")
+        if deny_execute is None or int(deny_execute) != 1:
+            issues.append("Execute access: allowed")
+        if not issues:
+            return
+        self._add_finding(
+            "DR-HDN-050",
+            "System Hardening: Removable Storage Policy Not Restrictive",
+            "MEDIUM",
+            f"Removable storage access is not restricted. "
+            f"{'; '.join(issues)}.",
+            "Unrestricted removable storage allows data exfiltration via USB "
+            "drives and introduces malware risk from infected media. Write "
+            "access enables an insider to copy sensitive data; execute access "
+            "enables auto-launched payloads.",
+            "Configure Group Policy: Computer Configuration > Administrative "
+            "Templates > System > Removable Storage Access. At minimum deny "
+            "write and execute access to removable disks.",
+            output=f"Deny_All: {deny_all}, Deny_Write: {deny_write}, "
+                   f"Deny_Execute: {deny_execute}, Deny_Read: {deny_read}",
+            remediation_effort="Easy",
+            remediation_category="Access Control",
+            mitre_attack=[{"technique": "T1091", "tactic": "Initial Access",
+                           "name": "Replication Through Removable Media"},
+                          {"technique": "T1052.001", "tactic": "Exfiltration",
+                           "name": "Exfiltration over USB"}],
+            nist_800_53=["MP-7", "SC-41"],
+            pci_dss_4=["2.2.7"],
+        )
+
+    # ------------------------------------------------------------------ #
+    # DR-HDN-051-053  Expanded Audit Subcategories
+    # ------------------------------------------------------------------ #
+    def _check_expanded_audit_subcategories(self):
+        audit = self._get_section("registry_hardening", {}).get("audit_policy", {})
+        if not isinstance(audit, dict):
+            return
+        _EXTRA_SUBS = {
+            ("Logon/Logoff", "Special Logon"): ("Success", "DR-HDN-051",
+                "Monitoring: Special Logon Events Not Audited"),
+            ("Logon/Logoff", "Account Lockout"): ("Failure", "DR-HDN-052",
+                "Monitoring: Account Lockout Events Not Audited"),
+            ("Object Access", "Removable Storage"): ("Success,Failure", "DR-HDN-053",
+                "Monitoring: Removable Storage Access Not Audited"),
+        }
+        for (cat, sub), (needed, cat_id, title) in _EXTRA_SUBS.items():
+            cat_data = audit.get(cat, {})
+            if not isinstance(cat_data, dict):
+                continue
+            actual = cat_data.get(sub, "No Auditing")
+            if actual and actual != "No Auditing":
+                continue
+            self._add_finding(
+                cat_id, title, "LOW",
+                f"The audit subcategory '{cat} > {sub}' is set to "
+                f"'{actual}'. Recommended: {needed}.",
+                f"Without auditing {sub} events, the security team lacks "
+                f"visibility into this activity category, which may hinder "
+                f"forensic investigation and threat detection.",
+                f"Enable '{sub}' auditing via: auditpol /set /subcategory:"
+                f'"{sub}" /success:enable /failure:enable.',
+                output=f"{cat} > {sub}: {actual} (need {needed})",
+                remediation_effort="Easy",
+                remediation_category="Monitoring",
+                nist_800_53=["AU-2", "AU-12"],
+            )
+
+    # ------------------------------------------------------------------ #
+    # DR-HDN-054-058  Defender Detailed Checks
+    # ------------------------------------------------------------------ #
+    def _check_defender_detailed(self):
+        dd = self._get_section("defender_detailed", {})
+        if not isinstance(dd, dict) or not dd:
+            return
+        tamper = dd.get("tamper_protection")
+        if tamper is not None and not tamper:
+            self._add_finding(
+                "DR-HDN-054",
+                "Endpoint Protection: Defender Tamper Protection Disabled",
+                "HIGH",
+                "Windows Defender Tamper Protection is disabled. Malware or "
+                "an attacker can disable Defender protections programmatically.",
+                "Without Tamper Protection, an attacker with admin access can "
+                "disable Defender via PowerShell, registry edits, or the "
+                "sc command. Ransomware routinely disables AV before encrypting.",
+                "Enable Tamper Protection via the Windows Security app or "
+                "Intune. It cannot be enabled via Group Policy by design.",
+                remediation_effort="Easy",
+                remediation_category="Endpoint Protection",
+                mitre_attack=[{"technique": "T1562.001", "tactic": "Defense Evasion",
+                               "name": "Disable or Modify Tools"}],
+                nist_800_53=["SI-3", "SI-4"],
+            )
+        cloud = dd.get("cloud_protection")
+        if cloud is not None and not cloud:
+            self._add_finding(
+                "DR-HDN-055",
+                "Endpoint Protection: Defender Cloud Protection Disabled",
+                "MEDIUM",
+                "Defender cloud-delivered protection is disabled. The endpoint "
+                "relies solely on local signature definitions.",
+                "Cloud protection provides rapid response to zero-day threats "
+                "through cloud-based machine learning. Without it, detection "
+                "depends on local definitions which may be hours behind.",
+                "Enable cloud protection: Set-MpPreference "
+                "-MAPSReporting Advanced.",
+                remediation_effort="Easy",
+                remediation_category="Endpoint Protection",
+                nist_800_53=["SI-3"],
+            )
+        def_age = dd.get("definition_age_days")
+        if def_age is not None:
+            try:
+                age = int(def_age)
+            except (ValueError, TypeError):
+                age = 0
+            if age > 7:
+                risk = "HIGH" if age > 14 else "MEDIUM"
+                self._add_finding(
+                    "DR-HDN-056",
+                    "Endpoint Protection: Defender Definitions Outdated",
+                    risk,
+                    f"Antimalware definitions are {age} day(s) old. "
+                    f"Current threats may not be detected.",
+                    "Outdated antivirus definitions miss newly discovered "
+                    "malware signatures. Threat actors routinely test payloads "
+                    "against current definitions, so stale definitions "
+                    "significantly reduce detection rates.",
+                    "Update definitions: Update-MpSignature. Investigate why "
+                    "automatic updates are failing.",
+                    output=f"Definition age: {age} days",
+                    remediation_effort="Easy",
+                    remediation_category="Endpoint Protection",
+                    nist_800_53=["SI-3"],
+                )
+        av_products = dd.get("av_products", [])
+        if isinstance(av_products, list):
+            disabled_av = [a for a in av_products
+                           if isinstance(a, dict)
+                           and not a.get("enabled", True)]
+            if disabled_av:
+                names = ", ".join(a.get("name", "?") for a in disabled_av[:5])
+                self._add_finding(
+                    "DR-HDN-057",
+                    "Endpoint Protection: Antivirus Product Disabled",
+                    "HIGH",
+                    f"Installed antivirus product(s) are disabled: {names}.",
+                    "A disabled antivirus product provides zero protection. "
+                    "This may indicate tampering by malware or an attacker.",
+                    f"Re-enable {names}. Investigate why it was disabled.",
+                    output=f"Disabled AV: {names}",
+                    remediation_effort="Easy",
+                    remediation_category="Endpoint Protection",
+                    mitre_attack=[{"technique": "T1562.001",
+                                   "tactic": "Defense Evasion",
+                                   "name": "Disable or Modify Tools"}],
+                    nist_800_53=["SI-3"],
+                )
+        rtp_detail = dd.get("realtime_protection_detail", {})
+        if isinstance(rtp_detail, dict):
+            behavior = rtp_detail.get("behavior_monitoring")
+            ioav = rtp_detail.get("ioav_protection")
+            on_access = rtp_detail.get("on_access_protection")
+            parts = []
+            if behavior is not None and not behavior:
+                parts.append("Behavior monitoring: OFF")
+            if ioav is not None and not ioav:
+                parts.append("IOAV protection: OFF")
+            if on_access is not None and not on_access:
+                parts.append("On-access protection: OFF")
+            if parts:
+                self._add_finding(
+                    "DR-HDN-058",
+                    "Endpoint Protection: Defender Sub-Protections Disabled",
+                    "MEDIUM",
+                    f"One or more Defender real-time sub-protections are "
+                    f"disabled: {'; '.join(parts)}.",
+                    "Disabling behaviour monitoring, IOAV, or on-access "
+                    "protection weakens the overall Defender posture even "
+                    "when real-time protection shows as enabled.",
+                    "Re-enable all sub-protections via PowerShell: "
+                    "Set-MpPreference -DisableBehaviorMonitoring $false "
+                    "-DisableIOAVProtection $false "
+                    "-DisableRealtimeMonitoring $false.",
+                    output="\n".join(parts),
+                    remediation_effort="Easy",
+                    remediation_category="Endpoint Protection",
+                    nist_800_53=["SI-3"],
+                )
+
+    # ------------------------------------------------------------------ #
+    # DR-HDN-059  DNS Client Security
+    # ------------------------------------------------------------------ #
+    def _check_dns_client(self):
+        dns = self._get_section("dns_client", {})
+        if not isinstance(dns, dict) or not dns:
+            return
+        doh = dns.get("doh_enabled")
+        dot = dns.get("dot_enabled")
+        dnssec_val = dns.get("dnssec_validation")
+        issues = []
+        if doh is not None and not doh and dot is not None and not dot:
+            issues.append("Neither DNS-over-HTTPS nor DNS-over-TLS is enabled")
+        if dnssec_val is not None and not dnssec_val:
+            issues.append("DNSSEC validation is not enabled")
+        if not issues:
+            return
+        self._add_finding(
+            "DR-HDN-059",
+            "Network Hardening: DNS Client Security Not Configured",
+            "LOW",
+            f"DNS client security gaps: {'; '.join(issues)}.",
+            "Without encrypted DNS (DoH/DoT), all DNS queries are visible "
+            "to network observers, leaking browsing activity and internal "
+            "hostnames. Without DNSSEC validation, DNS responses can be "
+            "spoofed to redirect traffic to attacker-controlled servers.",
+            "Enable DNS-over-HTTPS in Windows 11+: Settings > Network > "
+            "DNS server assignment > Encrypted preferred. For older systems, "
+            "deploy a local encrypted DNS proxy.",
+            output="\n".join(issues),
+            remediation_effort="Moderate",
+            remediation_category="Network Security",
+            mitre_attack=[{"technique": "T1557", "tactic": "Credential Access",
+                           "name": "Adversary-in-the-Middle"}],
+            nist_800_53=["SC-8", "SC-20"],
+        )
+
+    # ------------------------------------------------------------------ #
+    # DR-HDN-060  CIS Baseline Comparison
+    # ------------------------------------------------------------------ #
+    def _check_cis_baseline(self):
+        reg = self._get_section("registry_hardening", {})
+        if not isinstance(reg, dict):
+            return
+        sp = self._get_section("security_policy", {})
+        if not isinstance(sp, dict):
+            sp = {}
+        _CIS_CHECKS = [
+            ("screen_saver_timeout", reg.get("ScreenSaverTimeout"),
+             lambda v: v is not None and int(v) <= 900,
+             "Screen saver timeout > 15 minutes or not set"),
+            ("screen_saver_active", reg.get("ScreenSaverActive"),
+             lambda v: v is not None and str(v) == "1",
+             "Screen saver not enforced"),
+            ("no_connect", reg.get("NoConnectedUser"),
+             lambda v: v is not None and int(v) >= 1,
+             "Microsoft account connections not restricted"),
+            ("safe_dll_search", reg.get("SafeDllSearchMode"),
+             lambda v: v is None or int(v) == 1,
+             "Safe DLL search order disabled"),
+            ("ie_security_zone", reg.get("IEHardenAdmin"),
+             lambda v: v is not None and int(v) == 1,
+             "IE Enhanced Security for admins not enabled (server only)"),
+        ]
+        password_policy = sp.get("password_policy", {})
+        if isinstance(password_policy, dict):
+            min_len = password_policy.get("MinimumPasswordLength")
+            if min_len is not None:
+                try:
+                    ml = int(min_len)
+                except (ValueError, TypeError):
+                    ml = 0
+                if ml < 14:
+                    _CIS_CHECKS.append(
+                        ("min_pw_len", min_len,
+                         lambda v: False,
+                         f"Minimum password length is {ml} (CIS: >= 14)"))
+            max_age = password_policy.get("MaximumPasswordAge")
+            if max_age is not None:
+                try:
+                    ma = int(max_age)
+                except (ValueError, TypeError):
+                    ma = 0
+                if ma > 365 or ma == 0:
+                    _CIS_CHECKS.append(
+                        ("max_pw_age", max_age,
+                         lambda v: False,
+                         f"Maximum password age is {ma} days (CIS: <= 365, non-zero)"))
+            complexity = password_policy.get("PasswordComplexity")
+            if complexity is not None and int(complexity) != 1:
+                _CIS_CHECKS.append(
+                    ("pw_complexity", complexity,
+                     lambda v: False,
+                     "Password complexity requirements not enforced"))
+        lockout_policy = sp.get("lockout_policy", {})
+        if isinstance(lockout_policy, dict):
+            threshold = lockout_policy.get("LockoutBadCount")
+            if threshold is not None:
+                try:
+                    lt = int(threshold)
+                except (ValueError, TypeError):
+                    lt = 0
+                if lt == 0 or lt > 5:
+                    _CIS_CHECKS.append(
+                        ("lockout_threshold", threshold,
+                         lambda v: False,
+                         f"Account lockout threshold is {lt} (CIS: 1-5)"))
+        failures = []
+        for name, val, check_fn, msg in _CIS_CHECKS:
+            try:
+                if not check_fn(val):
+                    failures.append(msg)
+            except (ValueError, TypeError):
+                failures.append(msg)
+        if self._is_server():
+            ie_check = reg.get("IEHardenAdmin")
+        else:
+            failures = [f for f in failures
+                        if "IE Enhanced Security" not in f]
+        if len(failures) < 3:
+            return
+        self._add_finding(
+            "DR-HDN-060",
+            "Compliance: CIS Benchmark Baseline Deviations",
+            "MEDIUM",
+            f"{len(failures)} setting(s) deviate from the CIS Windows "
+            f"benchmark baseline.",
+            "CIS benchmarks represent industry-consensus hardening standards. "
+            "Multiple deviations indicate the system has not been hardened "
+            "according to best practices, increasing the overall attack surface.",
+            "Apply the CIS Windows benchmark using Group Policy or a "
+            "configuration management tool. Start with Level 1 settings, "
+            "then evaluate Level 2 settings for applicability.",
+            output="\n".join(failures[:15]),
+            remediation_effort="Significant",
+            remediation_category="Compliance",
+            nist_800_53=["CM-6", "CM-7"],
+            nist_csf2=["PR.IP-1"],
+            pci_dss_4=["2.2.1"],
+        )

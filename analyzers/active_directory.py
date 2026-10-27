@@ -28,6 +28,8 @@ class ActiveDirectoryAnalyzer(BaseAnalyzer):
         self._check_krbtgt(ad)
         self._check_stale_accounts(ad)
         self._check_sid_history(ad)
+        self._check_fine_grained_password_policies(ad)
+        self._check_gmsa(ad)
         return self.findings
 
     # ------------------------------------------------------------------ #
@@ -565,6 +567,9 @@ class ActiveDirectoryAnalyzer(BaseAnalyzer):
                 nist_800_53=["AC-6", "AC-2"],
             )
 
+    # ------------------------------------------------------------------ #
+    # DR-AD-011 / DR-AD-015 / DR-AD-016  LAPS checks
+    # ------------------------------------------------------------------ #
     def _check_laps(self, ad):
         laps = self._get_section("laps_config", {})
         if not isinstance(laps, dict):
@@ -590,6 +595,72 @@ class ActiveDirectoryAnalyzer(BaseAnalyzer):
                                "name": "Domain Accounts"}],
                 nist_800_53=["IA-5", "AC-6"],
                 pci_dss_4=["8.3.6"],
+            )
+            return
+
+        policy = laps.get("laps_policy", {})
+        if isinstance(policy, dict) and policy:
+            issues = []
+            pw_len = policy.get("PasswordLength")
+            pw_age = policy.get("PasswordAgeDays")
+            pw_complex = policy.get("PasswordComplexity")
+            try:
+                if pw_len is not None and int(pw_len) < 15:
+                    issues.append(f"PasswordLength={pw_len} (recommended >= 20)")
+            except (ValueError, TypeError):
+                pass
+            try:
+                if pw_age is not None and int(pw_age) > 30:
+                    issues.append(f"PasswordAgeDays={pw_age} (recommended <= 15)")
+            except (ValueError, TypeError):
+                pass
+            try:
+                if pw_complex is not None and int(pw_complex) < 4:
+                    issues.append(f"PasswordComplexity={pw_complex} (recommended 4)")
+            except (ValueError, TypeError):
+                pass
+            if issues:
+                self._add_finding(
+                    "DR-AD-015",
+                    "Active Directory: LAPS Weak Password Policy",
+                    "MEDIUM",
+                    "LAPS is deployed but the password policy is weaker than "
+                    "recommended. " + "; ".join(issues) + ".",
+                    "Short or simple LAPS-managed passwords, or infrequent "
+                    "rotation, undermine the protection LAPS provides. A weak "
+                    "LAPS password can be brute-forced if the ms-Mcs-AdmPwd "
+                    "attribute is ever exposed or intercepted.",
+                    "Set LAPS PasswordLength to 20+, PasswordAgeDays to 15, "
+                    "and PasswordComplexity to 4 (upper + lower + digits + "
+                    "specials) via Group Policy.",
+                    output="\n".join(issues),
+                    remediation_effort="Easy",
+                    nist_800_53=["IA-5"],
+                    pci_dss_4=["8.3.6"],
+                )
+
+        admpwd_readable = laps.get("admpwd_readable")
+        if admpwd_readable is True:
+            self._add_finding(
+                "DR-AD-016",
+                "Active Directory: LAPS Password Readable by Non-Administrators",
+                "HIGH",
+                "The LAPS-managed local administrator password (ms-Mcs-AdmPwd) "
+                "is readable by the context under which data collection ran. If "
+                "this was a standard user account, the LAPS ACLs are misconfigured.",
+                "If non-administrative users can read ms-Mcs-AdmPwd, any "
+                "compromised domain user can retrieve the local administrator "
+                "password for every LAPS-managed machine in the domain, enabling "
+                "immediate lateral movement with local admin privileges.",
+                "Restrict read access to ms-Mcs-AdmPwd to only the designated "
+                "LAPS admin groups using Set-AdmPwdReadPasswordPermission. "
+                "Audit current permissions with Find-AdmPwdExtendedRights.",
+                output="ms-Mcs-AdmPwd: readable by collection context",
+                remediation_effort="Easy",
+                mitre_attack=[{"technique": "T1078.002", "tactic": "Persistence",
+                               "name": "Domain Accounts"}],
+                nist_800_53=["AC-3", "AC-6"],
+                pci_dss_4=["7.2.1"],
             )
 
     def _check_krbtgt(self, ad):
@@ -685,3 +756,71 @@ class ActiveDirectoryAnalyzer(BaseAnalyzer):
                                "name": "SID-History Injection"}],
                 nist_800_53=["AC-6"],
             )
+
+    # ------------------------------------------------------------------ #
+    # DR-AD-017  Fine-Grained Password Policies
+    # ------------------------------------------------------------------ #
+    def _check_fine_grained_password_policies(self, ad):
+        if not self.os_info.get("is_domain_joined"):
+            return
+        fgpps = ad.get("fine_grained_password_policies",
+                        ad.get("pso_policies", []))
+        if isinstance(fgpps, list) and fgpps:
+            return
+        self._add_finding(
+            "DR-AD-017",
+            "Active Directory: Fine-Grained Password Policies Not Deployed",
+            "LOW",
+            "No Fine-Grained Password Policies (FGPPs / Password Settings "
+            "Objects) are deployed in the domain. All accounts must use the "
+            "single Default Domain Policy for password requirements.",
+            "Without FGPPs, service accounts and privileged accounts cannot "
+            "have stricter password requirements than standard users. "
+            "Privileged accounts should require longer passwords and shorter "
+            "rotation intervals than the baseline domain policy.",
+            "Create FGPPs (Password Settings Objects) for privileged tiers: "
+            "Domain Admins with 25+ character minimum, service accounts with "
+            "20+ character minimum, and standard users with 12+ minimum. "
+            "Apply via Security Groups in ADAC or PowerShell "
+            "New-ADFineGrainedPasswordPolicy.",
+            remediation_effort="Moderate",
+            nist_800_53=["IA-5", "AC-2"],
+            pci_dss_4=["8.3.6"],
+        )
+
+    # ------------------------------------------------------------------ #
+    # DR-AD-018  Group Managed Service Accounts (gMSA)
+    # ------------------------------------------------------------------ #
+    def _check_gmsa(self, ad):
+        if not self.os_info.get("is_domain_joined"):
+            return
+        kerberoastable = ad.get("kerberoastable_accounts",
+                                ad.get("spn_accounts", []))
+        if not isinstance(kerberoastable, list) or not kerberoastable:
+            return
+        gmsa = ad.get("gmsa_accounts",
+                       ad.get("managed_service_accounts", []))
+        if isinstance(gmsa, list) and gmsa:
+            return
+        self._add_finding(
+            "DR-AD-018",
+            "Active Directory: Group Managed Service Accounts Not Utilized",
+            "LOW",
+            f"The domain has {len(kerberoastable)} Kerberoastable service "
+            f"account(s) with SPNs but no Group Managed Service Accounts "
+            f"(gMSAs) are deployed.",
+            "gMSAs automatically rotate 120-character, cryptographically random "
+            "passwords every 30 days. Without gMSAs, service accounts use "
+            "static human-managed passwords that are vulnerable to "
+            "Kerberoasting offline cracking. gMSA eliminates this entire "
+            "attack class for accounts that support it.",
+            "Migrate service accounts to gMSAs where the application supports "
+            "it (SQL Server, IIS, scheduled tasks, Windows services). Create "
+            "gMSAs with New-ADServiceAccount -DNSHostName ... "
+            "-PrincipalsAllowedToRetrieveManagedPassword. Test each "
+            "application with the gMSA before removing the legacy SPN account.",
+            remediation_effort="Significant",
+            mitre_attack=[{"technique": "T1558.003", "tactic": "Credential Access",
+                           "name": "Kerberoasting"}],
+            nist_800_53=["IA-5", "AC-2"],
+        )

@@ -1,4 +1,32 @@
+import re
 from analyzers.base import BaseAnalyzer
+
+_LOLBIN_EXECUTABLES = {
+    "powershell", "powershell.exe", "pwsh", "pwsh.exe",
+    "cmd", "cmd.exe", "wscript", "wscript.exe",
+    "cscript", "cscript.exe", "mshta", "mshta.exe",
+    "rundll32", "rundll32.exe", "regsvr32", "regsvr32.exe",
+    "certutil", "certutil.exe", "bitsadmin", "bitsadmin.exe",
+    "msiexec", "msiexec.exe",
+}
+
+_SUSPICIOUS_ARG_PATTERNS = re.compile(
+    r"-enc\b|-encodedcommand\b|-e\s|"
+    r"https?://|\\\\\\\\|"
+    r"base64|downloadstring|downloadfile|downloaddata|"
+    r"invoke-expression|iex\b|invoke-webrequest|"
+    r"bypass|-nop\b|-noni\b|-windowstyle\s+hidden|"
+    r"webclient|start-bitstransfer|net\.webclient|"
+    r"frombase64string",
+    re.IGNORECASE,
+)
+
+_USER_WRITABLE_PATHS_RE = re.compile(
+    r"\\users\\|\\temp\\|\\tmp\\|\\appdata\\|\\programdata\\|"
+    r"\\downloads\\|\\desktop\\|\\public\\|"
+    r"c:\\temp\\|c:\\tmp\\",
+    re.IGNORECASE,
+)
 
 
 class PersistenceAnalyzer(BaseAnalyzer):
@@ -11,6 +39,7 @@ class PersistenceAnalyzer(BaseAnalyzer):
         self._check_print_monitors()
         self._check_sysmon()
         self._check_lsa_packages()
+        self._check_scheduled_tasks()
         return self.findings
 
     def _pers(self, key, default=None):
@@ -234,27 +263,73 @@ class PersistenceAnalyzer(BaseAnalyzer):
             sysmon_info = self._pers("sysmon", {})
             if isinstance(sysmon_info, dict) and sysmon_info.get("installed"):
                 sysmon_found = True
-        if sysmon_found:
+        if not sysmon_found:
+            self._add_finding(
+                "DR-SYS-011", "Monitoring: Sysmon Not Installed", "MEDIUM",
+                "Sysmon (System Monitor) is not installed on this system. Sysmon "
+                "provides detailed event logging for process creation, network "
+                "connections, file changes, and registry modifications.",
+                "Without Sysmon, critical telemetry for detecting adversary activity "
+                "is missing. Process creation events with command lines, network "
+                "connection logging, and driver/DLL loading events are essential for "
+                "threat hunting and incident response.",
+                "Install Sysmon from Microsoft Sysinternals with a comprehensive "
+                "configuration (e.g., SwiftOnSecurity/sysmon-config or "
+                "olafhartong/sysmon-modular). Configure log forwarding to a SIEM.",
+                remediation_effort="Moderate",
+                remediation_category="Monitoring",
+                mitre_attack=[{"technique": "T1562.001", "tactic": "Defense Evasion",
+                               "name": "Disable or Modify Tools"}],
+                nist_800_53=["SI-4", "AU-12"],
+                nist_csf2=["DE.CM-1"],
+            )
             return
-        self._add_finding(
-            "DR-SYS-011", "Monitoring: Sysmon Not Installed", "MEDIUM",
-            "Sysmon (System Monitor) is not installed on this system. Sysmon "
-            "provides detailed event logging for process creation, network "
-            "connections, file changes, and registry modifications.",
-            "Without Sysmon, critical telemetry for detecting adversary activity "
-            "is missing. Process creation events with command lines, network "
-            "connection logging, and driver/DLL loading events are essential for "
-            "threat hunting and incident response.",
-            "Install Sysmon from Microsoft Sysinternals with a comprehensive "
-            "configuration (e.g., SwiftOnSecurity/sysmon-config or "
-            "olafhartong/sysmon-modular). Configure log forwarding to a SIEM.",
-            remediation_effort="Moderate",
-            remediation_category="Monitoring",
-            mitre_attack=[{"technique": "T1562.001", "tactic": "Defense Evasion",
-                           "name": "Disable or Modify Tools"}],
-            nist_800_53=["SI-4", "AU-12"],
-            nist_csf2=["DE.CM-1"],
-        )
+
+        sysmon_info = self._pers("sysmon", {})
+        if not isinstance(sysmon_info, dict):
+            return
+        config_lines = sysmon_info.get("config")
+        if not config_lines or not isinstance(config_lines, list):
+            return
+        config_text = "\n".join(str(line) for line in config_lines).lower()
+        if not config_text.strip():
+            return
+        _CRITICAL_EVENTS = {
+            "processcreate": "ProcessCreate (Event 1)",
+            "networkconnect": "NetworkConnect (Event 3)",
+            "createremotethread": "CreateRemoteThread (Event 8)",
+            "processaccess": "ProcessAccess (Event 10)",
+            "filecreate": "FileCreate (Event 11)",
+            "registryevent": "RegistryEvent (Events 12/13/14)",
+        }
+        missing = []
+        for keyword, label in _CRITICAL_EVENTS.items():
+            if keyword not in config_text:
+                missing.append(label)
+        if len(missing) >= 3:
+            self._add_finding(
+                "DR-SYS-014",
+                "Monitoring: Sysmon Configuration Incomplete",
+                "MEDIUM",
+                f"Sysmon is installed but {len(missing)} critical event "
+                f"categories are not present in the active configuration.",
+                "Sysmon is installed but not logging critical event categories "
+                "needed for threat detection. Missing categories mean gaps in "
+                "visibility for process creation, network connections, remote "
+                "thread injection, or registry modifications — core telemetry "
+                "for detecting adversary tradecraft.",
+                "Update the Sysmon configuration to include all critical event "
+                "types. Use a comprehensive config like SwiftOnSecurity/"
+                "sysmon-config or olafhartong/sysmon-modular as a baseline. "
+                "Deploy with: sysmon -c <config.xml>.",
+                output="Missing event types:\n" + "\n".join(missing),
+                remediation_effort="Easy",
+                remediation_category="Monitoring",
+                mitre_attack=[{"technique": "T1562.001", "tactic": "Defense Evasion",
+                               "name": "Disable or Modify Tools"}],
+                nist_800_53=["SI-4", "AU-12"],
+                nist_csf2=["DE.CM-1"],
+            )
 
     def _check_lsa_packages(self):
         lsa = self._pers("lsa_packages", {})
@@ -307,3 +382,81 @@ class PersistenceAnalyzer(BaseAnalyzer):
                            "name": "Password Filter DLL"}],
             nist_800_53=["SI-4", "SI-7"],
         )
+
+    # ------------------------------------------------------------------ #
+    # DR-PERS-009  Suspicious Scheduled Tasks
+    # ------------------------------------------------------------------ #
+    def _check_scheduled_tasks(self):
+        tasks = self._get_section("scheduled_tasks", [])
+        if not isinstance(tasks, list) or not tasks:
+            return
+        count = 0
+        for task in tasks:
+            if not isinstance(task, dict):
+                continue
+            if count >= 10:
+                break
+            task_name = task.get("task_name", "Unknown")
+            task_path = task.get("task_path", "")
+            principal = task.get("principal_user", "")
+            run_level = task.get("run_level", "")
+            actions = task.get("actions", [])
+            if not isinstance(actions, list):
+                continue
+            is_system = principal and principal.lower() in (
+                "system", "nt authority\\system", "local system",
+                "s-1-5-18")
+            for action in actions:
+                if not isinstance(action, dict):
+                    continue
+                exe = str(action.get("execute", "")).strip()
+                args = str(action.get("arguments", "")).strip()
+                exe_lower = exe.lower().replace("\\", "/").rsplit("/", 1)[-1]
+                suspicious = False
+                reason = ""
+                if exe_lower in _LOLBIN_EXECUTABLES:
+                    if _SUSPICIOUS_ARG_PATTERNS.search(args):
+                        suspicious = True
+                        reason = "LOLBin with suspicious arguments"
+                if not suspicious and _USER_WRITABLE_PATHS_RE.search(exe):
+                    suspicious = True
+                    reason = "Executable in user-writable path"
+                if not suspicious and is_system and task_path:
+                    if not task_path.startswith("\\Microsoft\\Windows\\"):
+                        if exe_lower in _LOLBIN_EXECUTABLES or _USER_WRITABLE_PATHS_RE.search(exe):
+                            suspicious = True
+                            reason = "SYSTEM task outside \\Microsoft\\Windows\\"
+                        elif exe and not exe.lower().startswith(("c:\\windows\\", "%systemroot%")):
+                            suspicious = True
+                            reason = "SYSTEM task with non-system executable"
+                if not suspicious:
+                    continue
+                risk = "HIGH" if is_system else "MEDIUM"
+                args_display = args[:200] + "..." if len(args) > 200 else args
+                self._add_finding(
+                    "DR-PERS-009",
+                    "Persistence: Suspicious Scheduled Task Detected",
+                    risk,
+                    f"Scheduled task '{task_name}' at '{task_path}' has a "
+                    f"suspicious configuration: {reason}.",
+                    "Scheduled tasks are a common persistence mechanism. "
+                    "Attackers create tasks that execute via LOLBins "
+                    "(powershell, cmd, mshta, rundll32) with encoded commands, "
+                    "download cradles, or executables in user-writable paths. "
+                    "Tasks running as SYSTEM provide the highest privilege level.",
+                    f"Investigate task '{task_name}' and its action. If "
+                    f"unauthorized, remove with: Unregister-ScheduledTask "
+                    f"-TaskName '{task_name}' -Confirm:$false. Review all "
+                    f"non-Microsoft scheduled tasks regularly.",
+                    output=f"Task: {task_name}\nPath: {task_path}\n"
+                           f"Execute: {exe}\nArguments: {args_display}\n"
+                           f"Principal: {principal}\nRun level: {run_level}\n"
+                           f"Reason: {reason}",
+                    remediation_effort="Easy",
+                    remediation_category="Configuration",
+                    mitre_attack=[{"technique": "T1053.005", "tactic": "Persistence",
+                                   "name": "Scheduled Task"}],
+                    nist_800_53=["SI-4", "CM-7"],
+                )
+                count += 1
+                break

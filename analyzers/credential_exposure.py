@@ -12,6 +12,7 @@ class CredentialExposureAnalyzer(BaseAnalyzer):
         self._check_dpapi()
         self._check_keepass()
         self._check_ssh_keys()
+        self._check_autologon()
         return self.findings
 
     def _cred(self, key, default=None):
@@ -288,4 +289,71 @@ class CredentialExposureAnalyzer(BaseAnalyzer):
             mitre_attack=[{"technique": "T1552.004", "tactic": "Credential Access",
                            "name": "Private Keys"}],
             nist_800_53=["IA-5", "SC-17"],
+        )
+
+    # ------------------------------------------------------------------ #
+    # DR-CRED-010  Auto-Logon Credentials in Registry
+    # ------------------------------------------------------------------ #
+    def _check_autologon(self):
+        reg = self._get_section("registry_hardening", {})
+        if not isinstance(reg, dict):
+            return
+        autologon = reg.get("autologon", {})
+        if not isinstance(autologon, dict):
+            return
+        enabled = autologon.get("AutoAdminLogon")
+        username = autologon.get("DefaultUserName", "")
+        password = autologon.get("DefaultPassword")
+        domain = autologon.get("DefaultDomainName", "")
+        if str(enabled) != "1":
+            return
+        has_cleartext = password is not None and str(password).strip() != ""
+        if has_cleartext:
+            risk = "CRITICAL"
+            detail = (
+                f"Auto-logon is enabled for user "
+                f"'{domain}\\{username}' with a cleartext password stored "
+                f"in the registry at HKLM\\SOFTWARE\\Microsoft\\Windows NT\\"
+                f"CurrentVersion\\Winlogon\\DefaultPassword."
+            )
+        else:
+            risk = "HIGH"
+            detail = (
+                f"Auto-logon is enabled for user "
+                f"'{domain}\\{username}'. While DefaultPassword is not set "
+                f"in plaintext, credentials may be stored in LSA Secrets "
+                f"(DefaultPassword LSA secret)."
+            )
+        pw_display = "***PRESENT***" if has_cleartext else "(not in plaintext)"
+        self._add_finding(
+            "DR-CRED-010",
+            "Credential Exposure: Auto-Logon Credentials in Registry",
+            risk,
+            detail,
+            "Windows auto-logon stores credentials in the registry "
+            "(HKLM\\...\\Winlogon) readable by any local administrator. When "
+            "DefaultPassword is set, the plaintext password is visible to any "
+            "process running as SYSTEM or any admin user. Even without "
+            "DefaultPassword, the credential is stored in LSA Secrets and "
+            "extractable with tools like Mimikatz.",
+            "Disable auto-logon by setting AutoAdminLogon to 0 and removing "
+            "DefaultPassword. If auto-logon is required, use Autologon.exe "
+            "from Sysinternals which stores the password in LSA Secrets "
+            "rather than plaintext registry. Consider using a low-privilege "
+            "dedicated account.",
+            output=f"AutoAdminLogon: {enabled}\n"
+                   f"DefaultUserName: {username}\n"
+                   f"DefaultDomainName: {domain}\n"
+                   f"DefaultPassword: {pw_display}",
+            remediation_effort="Easy",
+            remediation_category="Authentication",
+            cvss_score=9.8 if has_cleartext else 7.5,
+            cvss_vector="CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:C/C:H/I:H/A:H"
+            if has_cleartext else
+            "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:N/A:N",
+            cwe=["CWE-256", "CWE-522"],
+            mitre_attack=[{"technique": "T1552.002", "tactic": "Credential Access",
+                           "name": "Credentials in Registry"}],
+            nist_800_53=["IA-5", "SC-28"],
+            pci_dss_4=["8.3.1"],
         )

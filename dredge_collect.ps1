@@ -819,7 +819,7 @@ function Collect-RegistryHardening {
     $data["smb_server"] = Get-RegValues $smbServerPath @(
         "SMB1","RequireSecuritySignature","EnableSecuritySignature",
         "AutoShareServer","AutoShareWks","NullSessionPipes","NullSessionShares",
-        "RestrictNullSessAccess"
+        "RestrictNullSessAccess","EncryptData","RejectUnencryptedAccess"
     )
     $smbClientPath = "HKLM:\SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters"
     $data["smb_client"] = Get-RegValues $smbClientPath @(
@@ -972,6 +972,55 @@ function Collect-RegistryHardening {
     $data["speculation_control"] = Get-RegValues $memMgmt @(
         "FeatureSettingsOverride","FeatureSettingsOverrideMask"
     )
+
+    # Auto-logon credentials
+    $winlogonPath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon"
+    $data["autologon"] = [ordered]@{
+        auto_admin_logon  = Get-RegValue $winlogonPath "AutoAdminLogon"
+        default_user_name = Get-RegValue $winlogonPath "DefaultUserName"
+        default_domain    = Get-RegValue $winlogonPath "DefaultDomainName"
+        default_password  = Get-RegValue $winlogonPath "DefaultPassword"
+    }
+
+    # Device installation restrictions (removable storage)
+    $devInstPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DeviceInstall\Restrictions"
+    $data["device_install_policy"] = Get-RegValues $devInstPath @(
+        "DenyAll","DenyDeviceIDs","DenyDeviceIDsRetroactive",
+        "DenyDeviceClasses","DenyDeviceClassesRetroactive",
+        "DenyRemovableDevices","AllowInstallationOfMatchingDeviceIDs"
+    )
+    $remStorPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\RemovableStorageDevices"
+    $data["removable_storage_policy"] = [ordered]@{
+        deny_all_read  = Get-RegValue "$remStorPath" "Deny_All"
+        deny_all_write = Get-RegValue "$remStorPath\{53f5630d-b6bf-11d0-94f2-00a0c91efb8b}" "Deny_Write"
+    }
+
+    # DNS client DoH policy
+    $dnsClientPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient"
+    $data["dns_client"] = [ordered]@{
+        doh_policy         = Get-RegValue "HKLM:\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters" "EnableAutoDoh"
+        doh_policy_gpo     = Get-RegValue $dnsClientPath "DoHPolicy"
+        dns_over_https     = Get-RegValue $dnsClientPath "DnsOverHttps"
+    }
+
+    # Screen saver / lock timeout
+    try {
+        $data["screen_saver"] = [ordered]@{
+            timeout_seconds = Get-RegValue "HKCU:\Control Panel\Desktop" "ScreenSaveTimeOut"
+            is_secure       = Get-RegValue "HKCU:\Control Panel\Desktop" "ScreenSaverIsSecure"
+            active          = Get-RegValue "HKCU:\Control Panel\Desktop" "ScreenSaveActive"
+        }
+        $inactivityPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System"
+        $data["screen_saver"]["inactivity_timeout"] = Get-RegValue $inactivityPath "InactivityTimeoutSecs"
+    } catch {
+        $data["screen_saver"] = [ordered]@{}
+    }
+
+    # Remote assistance
+    $data["remote_assistance"] = [ordered]@{
+        allow_to_get_help   = Get-RegValue "HKLM:\SYSTEM\CurrentControlSet\Control\Remote Assistance" "fAllowToGetHelp"
+        allow_full_control  = Get-RegValue "HKLM:\SYSTEM\CurrentControlSet\Control\Remote Assistance" "fAllowFullControl"
+    }
 
     return $data
 }
@@ -1264,6 +1313,46 @@ function Collect-ActiveDirectory {
         }
     } catch {}
     $data["admin_sd_holder_protected_users"] = $adminSDHolderModified
+
+    # krbtgt password last set
+    try {
+        $krbtgtSearcher = New-Object System.DirectoryServices.DirectorySearcher
+        $krbtgtSearcher.SearchRoot = [ADSI]"LDAP://$domainDN"
+        $krbtgtSearcher.Filter = "(&(objectClass=user)(sAMAccountName=krbtgt))"
+        $krbtgtSearcher.PropertiesToLoad.AddRange(@("pwdLastSet","whenChanged"))
+        $krbtgtResult = $krbtgtSearcher.FindOne()
+        if ($krbtgtResult) {
+            $pwdSet = $krbtgtResult.Properties["pwdlastset"]
+            if ($pwdSet.Count -gt 0 -and [long]$pwdSet[0] -gt 0) {
+                $data["krbtgt_password_last_set"] = [datetime]::FromFileTime([long]$pwdSet[0]).ToString("o")
+            }
+        }
+    } catch {}
+
+    # Group Managed Service Accounts (gMSA)
+    $gmsaAccounts = @()
+    try {
+        $gmsaSearcher = New-Object System.DirectoryServices.DirectorySearcher
+        $gmsaSearcher.SearchRoot = [ADSI]"LDAP://$domainDN"
+        $gmsaSearcher.Filter = "(objectClass=msDS-GroupManagedServiceAccount)"
+        $gmsaSearcher.PropertiesToLoad.AddRange(@(
+            "sAMAccountName","msDS-GroupMSAMembership",
+            "msDS-ManagedPasswordInterval","servicePrincipalName",
+            "whenCreated","description"
+        ))
+        $gmsaSearcher.PageSize = 1000
+        $gmsaResults = $gmsaSearcher.FindAll()
+        foreach ($g in $gmsaResults) {
+            $gmsaAccounts += [ordered]@{
+                name              = "$($g.Properties['samaccountname'])"
+                password_interval = $g.Properties['msds-managedpasswordinterval'][0]
+                spns              = @($g.Properties['serviceprincipalname'])
+                when_created      = "$($g.Properties['whencreated'])"
+                description       = "$($g.Properties['description'])"
+            }
+        }
+    } catch {}
+    $data["gmsa_accounts"] = $gmsaAccounts
 
     return $data
 }
@@ -3921,6 +4010,68 @@ function Collect-HardwareInventory {
 
 
 # ═══════════════════════════════════════════════════════════════
+# Section 39: Windows Event Forwarding (WEF) Configuration
+# ═══════════════════════════════════════════════════════════════
+function Collect-WEF {
+    $data = [ordered]@{}
+
+    # Check if WEC service is running
+    try {
+        $wecSvc = Get-Service Wecsvc -ErrorAction SilentlyContinue
+        $data["wec_service_status"] = if ($wecSvc) { $wecSvc.Status.ToString() } else { "Not Found" }
+        $data["wec_service_start_type"] = if ($wecSvc) { $wecSvc.StartType.ToString() } else { "N/A" }
+    } catch {
+        $data["wec_service_status"] = "Error"
+    }
+
+    # Check WinRM service (required for WEF)
+    try {
+        $winrmSvc = Get-Service WinRM -ErrorAction SilentlyContinue
+        $data["winrm_service_status"] = if ($winrmSvc) { $winrmSvc.Status.ToString() } else { "Not Found" }
+    } catch {
+        $data["winrm_service_status"] = "Error"
+    }
+
+    # Enumerate WEF subscriptions via wecutil
+    $subscriptions = @()
+    try {
+        if (Get-Command wecutil -ErrorAction SilentlyContinue) {
+            $subNames = wecutil es 2>$null
+            if ($subNames) {
+                foreach ($name in $subNames) {
+                    $name = $name.Trim()
+                    if (-not $name) { continue }
+                    try {
+                        $subInfo = wecutil gs "$name" 2>$null
+                        $enabled = $false
+                        $sourceCount = 0
+                        $deliveryMode = ""
+                        foreach ($line in $subInfo) {
+                            if ($line -match "^\s*Enabled:\s*(.+)") { $enabled = $Matches[1].Trim() -eq "true" }
+                            if ($line -match "^\s*DeliveryMode:\s*(.+)") { $deliveryMode = $Matches[1].Trim() }
+                            if ($line -match "^\s*EventSource\[") { $sourceCount++ }
+                        }
+                        $subscriptions += [ordered]@{
+                            name          = $name
+                            enabled       = $enabled
+                            delivery_mode = $deliveryMode
+                            source_count  = $sourceCount
+                        }
+                    } catch {}
+                }
+            }
+        }
+    } catch {}
+    $data["subscriptions"] = $subscriptions
+
+    # Check event forwarding registry
+    $data["event_forwarding_gpo"] = Get-RegValue "HKLM:\SOFTWARE\Policies\Microsoft\Windows\EventLog\EventForwarding\SubscriptionManager" "1"
+
+    return $data
+}
+
+
+# ═══════════════════════════════════════════════════════════════
 # Main execution
 # ═══════════════════════════════════════════════════════════════
 
@@ -3988,6 +4139,7 @@ $SectionMap = [ordered]@{
     "privacy_artifacts"     = { Collect-PrivacyArtifacts }
     "disk_storage"          = { Collect-DiskStorage }
     "hardware_inventory"    = { Collect-HardwareInventory }
+    "wef_config"            = { Collect-WEF }
 }
 
 $idx = 0
