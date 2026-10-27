@@ -1008,8 +1008,14 @@ class HardeningAnalyzer(BaseAnalyzer):
     # DR-HDN-046  SMB Encryption
     # ------------------------------------------------------------------ #
     def _check_smb_encryption(self):
-        encrypt = self._reg("SMBServer_EncryptData")
-        reject = self._reg("SMBServer_RejectUnencryptedAccess")
+        reg = self._get_section("registry_hardening", {})
+        smb = reg.get("smb_server", {}) if isinstance(reg, dict) else {}
+        encrypt = smb.get("EncryptData") if isinstance(smb, dict) else None
+        reject = smb.get("RejectUnencryptedAccess") if isinstance(smb, dict) else None
+        if encrypt is None:
+            encrypt = self._reg("SMBServer_EncryptData")
+        if reject is None:
+            reject = self._reg("SMBServer_RejectUnencryptedAccess")
         if encrypt is not None and int(encrypt) != 1:
             self._add_finding(
                 "DR-HDN-046",
@@ -1054,7 +1060,7 @@ class HardeningAnalyzer(BaseAnalyzer):
         wef = self._get_section("wef_config", {})
         if not isinstance(wef, dict):
             return
-        service_status = wef.get("service_status", "")
+        service_status = wef.get("wec_service_status", wef.get("service_status", ""))
         subscriptions = wef.get("subscriptions", [])
         if not service_status:
             return
@@ -1100,12 +1106,12 @@ class HardeningAnalyzer(BaseAnalyzer):
         reg = self._get_section("registry_hardening", {})
         if not isinstance(reg, dict):
             return
-        removable = reg.get("removable_storage", {})
+        removable = reg.get("removable_storage_policy", reg.get("removable_storage", {}))
         if not isinstance(removable, dict):
             return
-        deny_all = removable.get("Deny_All")
-        deny_write = removable.get("Deny_Write")
-        deny_read = removable.get("Deny_Read")
+        deny_all = removable.get("deny_all_read", removable.get("Deny_All"))
+        deny_write = removable.get("deny_all_write", removable.get("Deny_Write"))
+        deny_read = removable.get("deny_all_read", removable.get("Deny_Read"))
         deny_execute = removable.get("Deny_Execute")
         if deny_all is not None and int(deny_all) == 1:
             return
@@ -1305,12 +1311,18 @@ class HardeningAnalyzer(BaseAnalyzer):
     # DR-HDN-059  DNS Client Security
     # ------------------------------------------------------------------ #
     def _check_dns_client(self):
-        dns = self._get_section("dns_client", {})
+        reg = self._get_section("registry_hardening", {})
+        dns = reg.get("dns_client", {}) if isinstance(reg, dict) else {}
         if not isinstance(dns, dict) or not dns:
             return
-        doh = dns.get("doh_enabled")
-        dot = dns.get("dot_enabled")
-        dnssec_val = dns.get("dnssec_validation")
+        doh_policy = dns.get("doh_policy")
+        doh_gpo = dns.get("doh_policy_gpo")
+        doh_https = dns.get("dns_over_https")
+        doh = doh_policy is not None and int(doh_policy or 0) >= 1
+        doh = doh or (doh_gpo is not None and int(doh_gpo or 0) >= 1)
+        doh = doh or (doh_https is not None and int(doh_https or 0) >= 1)
+        dot = False
+        dnssec_val = False
         issues = []
         if doh is not None and not doh and dot is not None and not dot:
             issues.append("Neither DNS-over-HTTPS nor DNS-over-TLS is enabled")
@@ -1348,11 +1360,14 @@ class HardeningAnalyzer(BaseAnalyzer):
         sp = self._get_section("security_policy", {})
         if not isinstance(sp, dict):
             sp = {}
+        ss = reg.get("screen_saver", {}) if isinstance(reg, dict) else {}
+        if not isinstance(ss, dict):
+            ss = {}
         _CIS_CHECKS = [
-            ("screen_saver_timeout", reg.get("ScreenSaverTimeout"),
+            ("screen_saver_timeout", ss.get("timeout_seconds", reg.get("ScreenSaverTimeout")),
              lambda v: v is not None and int(v) <= 900,
              "Screen saver timeout > 15 minutes or not set"),
-            ("screen_saver_active", reg.get("ScreenSaverActive"),
+            ("screen_saver_active", ss.get("active", reg.get("ScreenSaverActive")),
              lambda v: v is not None and str(v) == "1",
              "Screen saver not enforced"),
             ("no_connect", reg.get("NoConnectedUser"),

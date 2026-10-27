@@ -754,6 +754,8 @@ def _assemble_registry_hardening(d):
     result["SMBServer_EnableSecuritySignature"] = _to_int(smb_server.get("EnableSecuritySignature"))
     result["NullSessionShares"] = smb_server.get("NullSessionShares", "")
     result["RestrictNullSessAccess"] = _to_int(smb_server.get("RestrictNullSessAccess"))
+    result["SMBServer_EncryptData"] = _to_int(smb_server.get("EncryptData"))
+    result["SMBServer_RejectUnencryptedAccess"] = _to_int(smb_server.get("RejectUnencryptedAccess"))
     # SMB Client (CIS 2.3.8)
     smb_client = _parse_reg_query(_read(d / "smb_client.txt"))
     result["SMBClient_RequireSecuritySignature"] = _to_int(smb_client.get("RequireSecuritySignature"))
@@ -769,6 +771,13 @@ def _assemble_registry_hardening(d):
     if auditpol:
         result["audit_policy_raw"] = auditpol
         result["audit_policy"] = _parse_auditpol(auditpol)
+    autologon = _parse_reg_query(_read_or_none(d, "autologon.txt") or "")
+    result["autologon"] = {
+        "auto_admin_logon": autologon.get("AutoAdminLogon"),
+        "default_user_name": autologon.get("DefaultUserName", ""),
+        "default_domain": autologon.get("DefaultDomainName", ""),
+        "default_password": autologon.get("DefaultPassword"),
+    }
     return result
 
 

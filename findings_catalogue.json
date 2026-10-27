@@ -530,7 +530,7 @@
     ],
     "metasploit_modules": [],
     "kev": false,
-    "remediation_brief": "Disable DES and RC4 encryption types in the domain. Set msDS-SupportedEncryptionTypes to support only AES128 (0x08) and AES256 (0x10). Test thoroughly \u2014 legacy systems (especially pre-2008 R2) may require RC4. Migrate legacy systems before disabling.",
+    "remediation_brief": "Disable DES and RC4 encryption types in the domain. Set msDS-SupportedEncryptionTypes to support only AES128 (0x08) and AES256 (0x10). Test thoroughly — legacy systems (especially pre-2008 R2) may require RC4. Migrate legacy systems before disabling.",
     "remediation_component": "Access Control",
     "remediation_category": "Active Directory",
     "remediation_effort": "Moderate",
@@ -689,7 +689,7 @@
     "searchsploit_terms": [],
     "metasploit_modules": [],
     "kev": false,
-    "remediation_brief": "Raise the domain and forest functional levels after ensuring all Domain Controllers are running a supported Windows Server version. This is a one-way operation \u2014 test in a lab environment first. Target at minimum Windows Server 2016 functional level.",
+    "remediation_brief": "Raise the domain and forest functional levels after ensuring all Domain Controllers are running a supported Windows Server version. This is a one-way operation — test in a lab environment first. Target at minimum Windows Server 2016 functional level.",
     "remediation_component": "Access Control",
     "remediation_category": "Active Directory",
     "remediation_effort": "Significant",
@@ -869,7 +869,7 @@
     ],
     "risk": "MEDIUM",
     "description": "The krbtgt account password has not been changed in an extended period (typically 180+ days). The krbtgt account is used to encrypt all Kerberos Ticket Granting Tickets (TGTs) in the domain. If its key material is compromised, an attacker can forge Golden Tickets.",
-    "impact": "A compromised krbtgt key enables Golden Ticket attacks, granting the attacker unrestricted access to any resource in the domain for the lifetime of the key. Kerberos maintains two most-recent krbtgt key versions \u2014 rotating the password invalidates the oldest one. Microsoft recommends rotating the krbtgt password at least every 180 days, and immediately after any suspected domain compromise.",
+    "impact": "A compromised krbtgt key enables Golden Ticket attacks, granting the attacker unrestricted access to any resource in the domain for the lifetime of the key. Kerberos maintains two most-recent krbtgt key versions — rotating the password invalidates the oldest one. Microsoft recommends rotating the krbtgt password at least every 180 days, and immediately after any suspected domain compromise.",
     "cwe": [
       "CWE-324"
     ],
@@ -935,7 +935,7 @@
       "auxiliary/admin/kerberos/forge_ticket"
     ],
     "kev": true,
-    "remediation_brief": "Rotate the krbtgt password using the Microsoft krbtgt reset script or manually via PowerShell (Reset-KrbtgtPassword). IMPORTANT: The krbtgt password must be reset TWICE (with a sufficient interval between resets, at least equal to the maximum ticket lifetime \u2014 typically 10 hours) to invalidate all existing TGTs. Schedule regular rotation every 180 days. After a suspected compromise, reset immediately (twice).",
+    "remediation_brief": "Rotate the krbtgt password using the Microsoft krbtgt reset script or manually via PowerShell (Reset-KrbtgtPassword). IMPORTANT: The krbtgt password must be reset TWICE (with a sufficient interval between resets, at least equal to the maximum ticket lifetime — typically 10 hours) to invalidate all existing TGTs. Schedule regular rotation every 180 days. After a suspected compromise, reset immediately (twice).",
     "remediation_component": "Access Control",
     "remediation_category": "Active Directory",
     "remediation_effort": "Moderate",
@@ -955,7 +955,7 @@
     ],
     "risk": "LOW",
     "description": "Domain user accounts were found that have not logged in for an extended period (90+ days) and are still enabled. Stale accounts represent dormant attack surface that attackers can target without triggering alerts tied to active users.",
-    "impact": "Stale accounts are attractive targets for attackers because their compromise is less likely to be noticed \u2014 no legitimate user will report unexpected activity. These accounts may retain their original (potentially weak) passwords, group memberships, and access permissions. If any stale account has privileged access, it presents an unmonitored path to escalation.",
+    "impact": "Stale accounts are attractive targets for attackers because their compromise is less likely to be noticed — no legitimate user will report unexpected activity. These accounts may retain their original (potentially weak) passwords, group memberships, and access permissions. If any stale account has privileged access, it presents an unmonitored path to escalation.",
     "cwe": [
       "CWE-672"
     ],
@@ -1106,7 +1106,7 @@
   },
   {
     "id": "DR-AD-015",
-    "title": "Active Directory: LAPS Weak Configuration",
+    "title": "Active Directory: LAPS Weak Password Policy",
     "aliases": [
       "LAPS Password Policy Weak",
       "LAPS Complexity Insufficient",
@@ -1245,7 +1245,7 @@
   },
   {
     "id": "DR-AD-017",
-    "title": "Active Directory: No Fine-Grained Password Policies",
+    "title": "Active Directory: Fine-Grained Password Policies Not Deployed",
     "aliases": [
       "FGPP Missing",
       "No PSO Defined",
@@ -1312,7 +1312,7 @@
   },
   {
     "id": "DR-AD-018",
-    "title": "Active Directory: Group Managed Service Accounts Not Used",
+    "title": "Active Directory: Group Managed Service Accounts Not Utilized",
     "aliases": [
       "gMSA Not Deployed",
       "No Managed Service Accounts",
@@ -1762,7 +1762,7 @@
     ],
     "risk": "CRITICAL",
     "description": "The Certificate Authority has the EDITF_ATTRIBUTESUBJECTALTNAME2 flag enabled. This CA-level configuration allows ANY certificate requester to specify an arbitrary Subject Alternative Name (SAN) in their request, regardless of template settings. This effectively makes every authentication template on this CA vulnerable to ESC1.",
-    "impact": "With this flag enabled, any domain user who can enroll in any template with an authentication EKU can specify an arbitrary SAN, impersonating any user in the domain including Domain Admins. This is a CA-wide misconfiguration that bypasses per-template SAN controls \u2014 fixing individual templates does not mitigate this issue. A single CA with this flag compromises the entire domain.",
+    "impact": "With this flag enabled, any domain user who can enroll in any template with an authentication EKU can specify an arbitrary SAN, impersonating any user in the domain including Domain Admins. This is a CA-wide misconfiguration that bypasses per-template SAN controls — fixing individual templates does not mitigate this issue. A single CA with this flag compromises the entire domain.",
     "cwe": [
       "CWE-295"
     ],
@@ -1837,7 +1837,7 @@
       "auxiliary/admin/dcerpc/icpr_cert"
     ],
     "kev": false,
-    "remediation_brief": "Disable the EDITF_ATTRIBUTESUBJECTALTNAME2 flag on the CA: certutil -config \"CA\\CAName\" -setreg policy\\EditFlags -EDITF_ATTRIBUTESUBJECTALTNAME2. Restart the CA service: net stop certsvc && net start certsvc. Verify: certutil -config \"CA\\CAName\" -getreg policy\\EditFlags \u2014 the output should NOT include EDITF_ATTRIBUTESUBJECTALTNAME2. After disabling, audit all recently issued certificates for suspicious SAN values.",
+    "remediation_brief": "Disable the EDITF_ATTRIBUTESUBJECTALTNAME2 flag on the CA: certutil -config \"CA\\CAName\" -setreg policy\\EditFlags -EDITF_ATTRIBUTESUBJECTALTNAME2. Restart the CA service: net stop certsvc && net start certsvc. Verify: certutil -config \"CA\\CAName\" -getreg policy\\EditFlags — the output should NOT include EDITF_ATTRIBUTESUBJECTALTNAME2. After disabling, audit all recently issued certificates for suspicious SAN values.",
     "remediation_component": "Configuration",
     "remediation_category": "Active Directory",
     "remediation_effort": "Easy",
@@ -3445,7 +3445,7 @@
     ],
     "risk": "INFO",
     "description": "Windows Credential Manager (Vault) contains stored credential entries. These may include web credentials, Windows credentials for network shares, and application-specific credentials protected by DPAPI.",
-    "impact": "While Credential Manager entries are protected by DPAPI (tied to the user's logon session), they can be decrypted by any process running as that user. If an attacker gains user-level access, they can extract all Vault credentials using tools like mimikatz or built-in vaultcmd commands. This finding is informational \u2014 the presence of stored credentials is expected behavior.",
+    "impact": "While Credential Manager entries are protected by DPAPI (tied to the user's logon session), they can be decrypted by any process running as that user. If an attacker gains user-level access, they can extract all Vault credentials using tools like mimikatz or built-in vaultcmd commands. This finding is informational — the presence of stored credentials is expected behavior.",
     "cwe": [
       "CWE-522"
     ],
@@ -3755,7 +3755,7 @@
   },
   {
     "id": "DR-CRED-010",
-    "title": "Credential Exposure: Auto-Logon Credentials Configured",
+    "title": "Credential Exposure: Auto-Logon Credentials in Registry",
     "aliases": [
       "AutoAdminLogon Enabled",
       "Windows Auto-Logon",
@@ -6714,7 +6714,7 @@
     ],
     "metasploit_modules": [],
     "kev": false,
-    "remediation_brief": "Enforce Constrained Language Mode via WDAC/AppLocker code integrity policies (the most robust method \u2014 CLM activates automatically when UMCI is enforced). Alternatively, set the __PSLockdownPolicy environment variable to 4 (system-wide), though this is less robust than WDAC enforcement. Test with administrative scripts first \u2014 CLM restricts .NET and COM access that some admin scripts require.",
+    "remediation_brief": "Enforce Constrained Language Mode via WDAC/AppLocker code integrity policies (the most robust method — CLM activates automatically when UMCI is enforced). Alternatively, set the __PSLockdownPolicy environment variable to 4 (system-wide), though this is less robust than WDAC enforcement. Test with administrative scripts first — CLM restricts .NET and COM access that some admin scripts require.",
     "remediation_component": "Configuration",
     "remediation_category": "Endpoint Security",
     "remediation_effort": "Significant",
@@ -7778,8 +7778,6 @@
     ]
   },
   {
-    "id": "DR-HDN-046",
-    "title": "Hardening: SMB Encryption Not Enforced",
     "aliases": [
       "SMB3 Encryption Disabled",
       "SMB EncryptData Off"
@@ -7787,68 +7785,89 @@
     "source_tools": [
       "dredge"
     ],
-    "risk": "MEDIUM",
-    "description": "SMB server encryption (EncryptData) is not enabled, or the server does not reject unencrypted access (RejectUnencryptedAccess). SMB3 encryption protects data in transit against eavesdropping and man-in-the-middle attacks on file shares.",
-    "impact": "Without SMB encryption, file share traffic traverses the network in cleartext (or with only signing). An attacker in a privileged network position can intercept sensitive files, credentials, and authentication tokens transmitted via SMB.",
-    "cwe": [
-      "CWE-319"
-    ],
+    "cwe": [],
     "cve_examples": [],
-    "cvss_v3_base": 5.9,
-    "cvss_vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:N/A:N",
+    "cvss_v3_base": null,
+    "cvss_vector": "",
     "nessus_plugin_ids": [],
     "qualys_qids": [],
     "owasp_web": "",
     "owasp_api": "",
-    "nist_csf2": [
-      "PR.DS-2"
-    ],
+    "nist_csf2": [],
     "nist_800_53": [
       "SC-8",
-      "SC-23"
+      "SC-13"
     ],
-    "nist_800_171": [
-      "3.13.8"
-    ],
-    "pci_dss_4": [
-      "4.2.1"
-    ],
-    "iso_27001": [
-      "A.13.1.1"
-    ],
-    "iso_27002": [
-      "8.20"
-    ],
-    "soc2": [
-      "CC6.1"
-    ],
-    "hitrust": [
-      "09.m"
-    ],
-    "gdpr": [
-      "Art. 32"
-    ],
+    "nist_800_171": [],
+    "pci_dss_4": [],
+    "iso_27001": [],
+    "iso_27002": [],
+    "soc2": [],
+    "hitrust": [],
+    "gdpr": [],
     "mitre_attack": [
       {
-        "technique": "T1557.001",
+        "technique": "T1040",
         "tactic": "Credential Access",
-        "name": "LLMNR/NBT-NS Poisoning and SMB Relay"
+        "name": "Network Sniffing"
       }
     ],
     "searchsploit_terms": [],
     "metasploit_modules": [],
     "kev": false,
-    "remediation_brief": "Enable SMB server encryption via Set-SmbServerConfiguration -EncryptData $true -RejectUnencryptedAccess $true. Ensure all clients support SMB3. Test impact on legacy clients before enforcing.",
-    "remediation_component": "Network",
-    "remediation_category": "Cryptography",
-    "remediation_effort": "Moderate",
-    "validation_tools": [
-      "dredge"
-    ]
+    "remediation_brief": "Enable SMB encryption: Set-SmbServerConfiguration -EncryptData $true. For per-share encryption: Set-SmbShare -Name <share> -EncryptData $true.",
+    "remediation_component": "",
+    "remediation_category": "Network Security",
+    "remediation_effort": "Easy",
+    "validation_tools": [],
+    "id": "DR-HDN-046",
+    "title": "Network Hardening: SMB Encryption Not Enabled",
+    "risk": "MEDIUM",
+    "description": "SMB traffic encryption is not enabled on the server. All file share and IPC traffic is transmitted in cleartext on the wire.",
+    "impact": "Without SMB encryption, an attacker with network access can capture file contents, credentials in transit, and sensitive data from shared folders using passive sniffing."
   },
   {
+    "aliases": [
+      "SMB RejectUnencryptedAccess Off"
+    ],
+    "source_tools": [
+      "dredge"
+    ],
+    "cwe": [],
+    "cve_examples": [],
+    "cvss_v3_base": null,
+    "cvss_vector": "",
+    "nessus_plugin_ids": [],
+    "qualys_qids": [],
+    "owasp_web": "",
+    "owasp_api": "",
+    "nist_csf2": [],
+    "nist_800_53": [
+      "SC-8"
+    ],
+    "nist_800_171": [],
+    "pci_dss_4": [],
+    "iso_27001": [],
+    "iso_27002": [],
+    "soc2": [],
+    "hitrust": [],
+    "gdpr": [],
+    "mitre_attack": [],
+    "searchsploit_terms": [],
+    "metasploit_modules": [],
+    "kev": false,
+    "remediation_brief": "Enable RejectUnencryptedAccess: Set-SmbServerConfiguration -RejectUnencryptedAccess $true. Verify all clients support SMB3 encryption before enabling.",
+    "remediation_component": "",
+    "remediation_category": "Network Security",
+    "remediation_effort": "Easy",
+    "validation_tools": [],
     "id": "DR-HDN-047",
-    "title": "Hardening: Windows Event Forwarding Not Configured",
+    "title": "Network Hardening: SMB Unencrypted Access Not Rejected",
+    "risk": "LOW",
+    "description": "SMB encryption is enabled but the server does not reject connections from clients that do not support encryption.",
+    "impact": "Clients that do not support SMB3 encryption can still connect with unencrypted SMB2/SMB3, negating the encryption policy for those sessions."
+  },
+  {
     "aliases": [
       "WEF Disabled",
       "No Event Forwarding",
@@ -7857,275 +7876,261 @@
     "source_tools": [
       "dredge"
     ],
-    "risk": "MEDIUM",
-    "description": "Windows Event Forwarding (WEF) is not configured on this system. The Windows Event Collector service (Wecsvc) is not running, no subscriptions are defined, or WinRM is disabled preventing event forwarding.",
-    "impact": "Without centralized event forwarding, security events remain only on individual endpoints. Attackers can tamper with or clear local event logs to cover their tracks, and security teams lose visibility into endpoint activity for detection and incident response.",
-    "cwe": [
-      "CWE-778"
-    ],
+    "cwe": [],
     "cve_examples": [],
-    "cvss_v3_base": 4.0,
-    "cvss_vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:C/C:N/I:N/A:L",
+    "cvss_v3_base": null,
+    "cvss_vector": "",
     "nessus_plugin_ids": [],
     "qualys_qids": [],
     "owasp_web": "",
     "owasp_api": "",
     "nist_csf2": [
-      "DE.CM-1",
-      "DE.CM-3"
+      "DE.CM-1"
     ],
     "nist_800_53": [
+      "AU-4",
       "AU-6",
       "SI-4"
     ],
-    "nist_800_171": [
-      "3.3.1",
-      "3.14.6"
-    ],
-    "pci_dss_4": [
-      "10.3.1"
-    ],
-    "iso_27001": [
-      "A.12.4.1"
-    ],
-    "iso_27002": [
-      "8.15",
-      "8.16"
-    ],
-    "soc2": [
-      "CC7.2"
-    ],
-    "hitrust": [
-      "09.ab"
-    ],
+    "nist_800_171": [],
+    "pci_dss_4": [],
+    "iso_27001": [],
+    "iso_27002": [],
+    "soc2": [],
+    "hitrust": [],
     "gdpr": [],
-    "mitre_attack": [
-      {
-        "technique": "T1070.001",
-        "tactic": "Defense Evasion",
-        "name": "Clear Windows Event Logs"
-      }
-    ],
+    "mitre_attack": [],
     "searchsploit_terms": [],
     "metasploit_modules": [],
     "kev": false,
-    "remediation_brief": "Enable the Windows Event Collector service (Wecsvc) and configure WEF subscriptions to forward Security, System, and PowerShell logs to a central collector. Configure via GPO: Computer Configuration > Policies > Administrative Templates > Windows Components > Event Forwarding.",
-    "remediation_component": "Configuration",
-    "remediation_category": "Logging and Monitoring",
+    "remediation_brief": "Enable WEC: wecutil qc. Configure subscriptions via Group Policy (Computer Configuration > Administrative Templates > Windows Components > Event Forwarding).",
+    "remediation_component": "",
+    "remediation_category": "Monitoring",
     "remediation_effort": "Moderate",
-    "validation_tools": [
-      "dredge"
-    ]
+    "validation_tools": [],
+    "id": "DR-HDN-048",
+    "title": "Monitoring: Windows Event Forwarding Not Active",
+    "risk": "MEDIUM",
+    "description": "The Windows Event Collector (WEC) service is not running. Event forwarding subscriptions cannot receive events.",
+    "impact": "Without WEF, security events remain on individual endpoints and are lost when disk space runs out or when an attacker clears local logs. Centralised collection is critical for SIEM-based detection and incident response."
   },
   {
-    "id": "DR-HDN-048",
-    "title": "Hardening: Removable Storage Not Restricted",
+    "aliases": [],
+    "source_tools": [
+      "dredge"
+    ],
+    "cwe": [],
+    "cve_examples": [],
+    "cvss_v3_base": null,
+    "cvss_vector": "",
+    "nessus_plugin_ids": [],
+    "qualys_qids": [],
+    "owasp_web": "",
+    "owasp_api": "",
+    "nist_csf2": [],
+    "nist_800_53": [
+      "AU-4",
+      "AU-6"
+    ],
+    "nist_800_171": [],
+    "pci_dss_4": [],
+    "iso_27001": [],
+    "iso_27002": [],
+    "soc2": [],
+    "hitrust": [],
+    "gdpr": [],
+    "mitre_attack": [],
+    "searchsploit_terms": [],
+    "metasploit_modules": [],
+    "kev": false,
+    "remediation_brief": "Create WEF subscriptions using wecutil cs <subscription.xml> or via Group Policy. Forward at minimum: Security log, Sysmon, PowerShell, and AppLocker events.",
+    "remediation_component": "",
+    "remediation_category": "Monitoring",
+    "remediation_effort": "Moderate",
+    "validation_tools": [],
+    "id": "DR-HDN-049",
+    "title": "Monitoring: No WEF Subscriptions Configured",
+    "risk": "LOW",
+    "description": "The Windows Event Collector service is running but no event subscriptions are configured.",
+    "impact": "WEC is enabled but has no subscriptions to forward events to a collector. Security events are not being centralised."
+  },
+  {
     "aliases": [
       "USB Storage Allowed",
-      "Removable Media Unrestricted",
-      "Device Installation Policy Missing"
+      "Removable Media Unrestricted"
     ],
     "source_tools": [
       "dredge"
     ],
-    "risk": "MEDIUM",
-    "description": "No Group Policy restrictions are in place for removable storage devices. USB drives, external hard disks, and other removable media can be freely connected and used for data transfer without controls.",
-    "impact": "Unrestricted removable storage allows attackers or insiders to exfiltrate sensitive data via USB drives, introduce malware through infected media, or bypass network-based DLP controls entirely. USB-based attacks (Rubber Ducky, BadUSB) also become viable.",
-    "cwe": [
-      "CWE-284"
-    ],
+    "cwe": [],
     "cve_examples": [],
-    "cvss_v3_base": 4.6,
-    "cvss_vector": "CVSS:3.1/AV:P/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
+    "cvss_v3_base": null,
+    "cvss_vector": "",
     "nessus_plugin_ids": [],
     "qualys_qids": [],
     "owasp_web": "",
     "owasp_api": "",
-    "nist_csf2": [
-      "PR.AC-3",
-      "PR.DS-5"
-    ],
+    "nist_csf2": [],
     "nist_800_53": [
       "MP-7",
       "SC-41"
     ],
-    "nist_800_171": [
-      "3.8.7"
-    ],
+    "nist_800_171": [],
     "pci_dss_4": [
-      "9.4.4"
+      "2.2.7"
     ],
-    "iso_27001": [
-      "A.8.3.1"
-    ],
-    "iso_27002": [
-      "7.10"
-    ],
-    "soc2": [
-      "CC6.4"
-    ],
-    "hitrust": [
-      "08.d"
-    ],
-    "gdpr": [
-      "Art. 32"
-    ],
-    "mitre_attack": [
-      {
-        "technique": "T1091",
-        "tactic": "Lateral Movement",
-        "name": "Replication Through Removable Media"
-      }
-    ],
-    "searchsploit_terms": [],
-    "metasploit_modules": [],
-    "kev": false,
-    "remediation_brief": "Configure Device Installation Restrictions via GPO: Computer Configuration > Administrative Templates > System > Device Installation > Device Installation Restrictions. Enable 'Prevent installation of removable devices' or use allow/deny lists by device class/ID. Also configure Removable Storage Access policies to deny read/write.",
-    "remediation_component": "Configuration",
-    "remediation_category": "Access Control",
-    "remediation_effort": "Moderate",
-    "validation_tools": [
-      "dredge"
-    ]
-  },
-  {
-    "id": "DR-HDN-050",
-    "title": "Hardening: Windows Defender Definitions Outdated",
-    "aliases": [
-      "Antivirus Signatures Stale",
-      "Defender Definitions Old"
-    ],
-    "source_tools": [
-      "dredge"
-    ],
-    "risk": "HIGH",
-    "description": "Windows Defender antivirus definitions are more than 7 days old. Outdated definitions significantly reduce the ability to detect recent malware, ransomware, and exploits.",
-    "impact": "Stale antivirus definitions leave the system vulnerable to newly discovered malware and exploits. Threat actors frequently update their tooling to evade older signatures, making timely definition updates critical for baseline protection.",
-    "cwe": [
-      "CWE-693"
-    ],
-    "cve_examples": [],
-    "cvss_v3_base": 5.3,
-    "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:N",
-    "nessus_plugin_ids": [
-      180406
-    ],
-    "qualys_qids": [],
-    "owasp_web": "",
-    "owasp_api": "",
-    "nist_csf2": [
-      "DE.CM-4"
-    ],
-    "nist_800_53": [
-      "SI-3"
-    ],
-    "nist_800_171": [
-      "3.14.2"
-    ],
-    "pci_dss_4": [
-      "5.3.2"
-    ],
-    "iso_27001": [
-      "A.12.2.1"
-    ],
-    "iso_27002": [
-      "8.7"
-    ],
-    "soc2": [
-      "CC6.8"
-    ],
-    "hitrust": [
-      "09.j"
-    ],
+    "iso_27001": [],
+    "iso_27002": [],
+    "soc2": [],
+    "hitrust": [],
     "gdpr": [],
     "mitre_attack": [
       {
-        "technique": "T1562.001",
-        "tactic": "Defense Evasion",
-        "name": "Disable or Modify Tools"
+        "technique": "T1091",
+        "tactic": "Initial Access",
+        "name": "Replication Through Removable Media"
+      },
+      {
+        "technique": "T1052.001",
+        "tactic": "Exfiltration",
+        "name": "Exfiltration over USB"
       }
     ],
     "searchsploit_terms": [],
     "metasploit_modules": [],
     "kev": false,
-    "remediation_brief": "Ensure Windows Update or WSUS is configured to deliver definition updates at least daily. Run 'Update-MpSignature' to force an immediate update. Verify connectivity to Microsoft Update servers or the configured WSUS endpoint.",
-    "remediation_component": "Configuration",
-    "remediation_category": "Endpoint Protection",
+    "remediation_brief": "Configure Group Policy: Computer Configuration > Administrative Templates > System > Removable Storage Access. At minimum deny write and execute access to removable disks.",
+    "remediation_component": "",
+    "remediation_category": "Access Control",
     "remediation_effort": "Easy",
-    "validation_tools": [
-      "dredge"
-    ]
+    "validation_tools": [],
+    "id": "DR-HDN-050",
+    "title": "System Hardening: Removable Storage Policy Not Restrictive",
+    "risk": "MEDIUM",
+    "description": "Removable storage access is not restricted. Write and/or execute access to removable media is allowed.",
+    "impact": "Unrestricted removable storage allows data exfiltration via USB drives and introduces malware risk from infected media. Write access enables an insider to copy sensitive data; execute access enables auto-launched payloads."
   },
   {
-    "id": "DR-HDN-051",
-    "title": "Hardening: Windows Defender Cloud Protection Disabled",
-    "aliases": [
-      "MAPS Disabled",
-      "Cloud-Delivered Protection Off",
-      "MAPSReporting Off"
-    ],
+    "aliases": [],
     "source_tools": [
       "dredge"
     ],
-    "risk": "MEDIUM",
-    "description": "Windows Defender cloud-delivered protection (Microsoft Active Protection Service / MAPS) is disabled. This feature provides rapid response to new threats using cloud-based machine learning analysis.",
-    "impact": "Without cloud protection, Defender relies solely on local signature definitions and heuristics. Cloud protection typically detects new threats hours or days before local definitions are updated, leaving a significant detection gap for zero-day and emerging malware.",
-    "cwe": [
-      "CWE-693"
-    ],
+    "cwe": [],
     "cve_examples": [],
-    "cvss_v3_base": 4.3,
-    "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:L/A:N",
+    "cvss_v3_base": null,
+    "cvss_vector": "",
     "nessus_plugin_ids": [],
     "qualys_qids": [],
     "owasp_web": "",
     "owasp_api": "",
-    "nist_csf2": [
-      "DE.CM-4"
-    ],
+    "nist_csf2": [],
     "nist_800_53": [
-      "SI-3"
+      "AU-2",
+      "AU-12"
     ],
-    "nist_800_171": [
-      "3.14.2"
-    ],
-    "pci_dss_4": [
-      "5.2.2"
-    ],
-    "iso_27001": [
-      "A.12.2.1"
-    ],
-    "iso_27002": [
-      "8.7"
-    ],
-    "soc2": [
-      "CC6.8"
-    ],
-    "hitrust": [
-      "09.j"
-    ],
+    "nist_800_171": [],
+    "pci_dss_4": [],
+    "iso_27001": [],
+    "iso_27002": [],
+    "soc2": [],
+    "hitrust": [],
     "gdpr": [],
-    "mitre_attack": [
-      {
-        "technique": "T1562.001",
-        "tactic": "Defense Evasion",
-        "name": "Disable or Modify Tools"
-      }
-    ],
+    "mitre_attack": [],
     "searchsploit_terms": [],
     "metasploit_modules": [],
     "kev": false,
-    "remediation_brief": "Enable cloud protection via GPO: Computer Configuration > Administrative Templates > Windows Components > Microsoft Defender Antivirus > MAPS > Join Microsoft MAPS (set to Advanced). Also enable 'Send file samples when further analysis is required'. Alternatively: Set-MpPreference -MAPSReporting Advanced -SubmitSamplesConsent SendAllSamples.",
-    "remediation_component": "Configuration",
-    "remediation_category": "Endpoint Protection",
+    "remediation_brief": "Enable 'Special Logon' auditing via: auditpol /set /subcategory:\"Special Logon\" /success:enable /failure:enable.",
+    "remediation_component": "",
+    "remediation_category": "Monitoring",
     "remediation_effort": "Easy",
-    "validation_tools": [
-      "dredge"
-    ]
+    "validation_tools": [],
+    "id": "DR-HDN-051",
+    "title": "Monitoring: Special Logon Events Not Audited",
+    "risk": "LOW",
+    "description": "The audit subcategory 'Logon/Logoff > Special Logon' is not configured. Recommended: Success.",
+    "impact": "Without auditing Special Logon events, the security team lacks visibility into this activity category, which may hinder forensic investigation and threat detection."
   },
   {
+    "aliases": [],
+    "source_tools": [
+      "dredge"
+    ],
+    "cwe": [],
+    "cve_examples": [],
+    "cvss_v3_base": null,
+    "cvss_vector": "",
+    "nessus_plugin_ids": [],
+    "qualys_qids": [],
+    "owasp_web": "",
+    "owasp_api": "",
+    "nist_csf2": [],
+    "nist_800_53": [
+      "AU-2",
+      "AU-12"
+    ],
+    "nist_800_171": [],
+    "pci_dss_4": [],
+    "iso_27001": [],
+    "iso_27002": [],
+    "soc2": [],
+    "hitrust": [],
+    "gdpr": [],
+    "mitre_attack": [],
+    "searchsploit_terms": [],
+    "metasploit_modules": [],
+    "kev": false,
+    "remediation_brief": "Enable 'Account Lockout' auditing via: auditpol /set /subcategory:\"Account Lockout\" /success:enable /failure:enable.",
+    "remediation_component": "",
+    "remediation_category": "Monitoring",
+    "remediation_effort": "Easy",
+    "validation_tools": [],
     "id": "DR-HDN-052",
-    "title": "Hardening: Windows Defender Tamper Protection Disabled",
+    "title": "Monitoring: Account Lockout Events Not Audited",
+    "risk": "LOW",
+    "description": "The audit subcategory 'Logon/Logoff > Account Lockout' is not configured. Recommended: Failure.",
+    "impact": "Without auditing Account Lockout events, the security team lacks visibility into this activity category, which may hinder forensic investigation and threat detection."
+  },
+  {
+    "aliases": [],
+    "source_tools": [
+      "dredge"
+    ],
+    "cwe": [],
+    "cve_examples": [],
+    "cvss_v3_base": null,
+    "cvss_vector": "",
+    "nessus_plugin_ids": [],
+    "qualys_qids": [],
+    "owasp_web": "",
+    "owasp_api": "",
+    "nist_csf2": [],
+    "nist_800_53": [
+      "AU-2",
+      "AU-12"
+    ],
+    "nist_800_171": [],
+    "pci_dss_4": [],
+    "iso_27001": [],
+    "iso_27002": [],
+    "soc2": [],
+    "hitrust": [],
+    "gdpr": [],
+    "mitre_attack": [],
+    "searchsploit_terms": [],
+    "metasploit_modules": [],
+    "kev": false,
+    "remediation_brief": "Enable 'Removable Storage' auditing via: auditpol /set /subcategory:\"Removable Storage\" /success:enable /failure:enable.",
+    "remediation_component": "",
+    "remediation_category": "Monitoring",
+    "remediation_effort": "Easy",
+    "validation_tools": [],
+    "id": "DR-HDN-053",
+    "title": "Monitoring: Removable Storage Access Not Audited",
+    "risk": "LOW",
+    "description": "The audit subcategory 'Object Access > Removable Storage' is not configured. Recommended: Success,Failure.",
+    "impact": "Without auditing Removable Storage events, the security team lacks visibility into this activity category, which may hinder forensic investigation and threat detection."
+  },
+  {
     "aliases": [
       "Tamper Protection Off",
       "Defender TamperProtection Disabled"
@@ -8133,44 +8138,25 @@
     "source_tools": [
       "dredge"
     ],
-    "risk": "HIGH",
-    "description": "Windows Defender Tamper Protection is not enabled. Without this feature, malware, scripts, or even local administrators can disable Defender real-time protection, cloud protection, and other security features.",
-    "impact": "Tamper Protection prevents unauthorized changes to Defender settings. Without it, attackers who gain local admin can trivially disable all Defender protections via PowerShell (Set-MpPreference), registry edits, or group policy, leaving the endpoint completely unprotected.",
-    "cwe": [
-      "CWE-693"
-    ],
+    "cwe": [],
     "cve_examples": [],
-    "cvss_v3_base": 6.5,
-    "cvss_vector": "CVSS:3.1/AV:L/AC:L/PR:H/UI:N/S:U/C:H/I:H/A:N",
+    "cvss_v3_base": null,
+    "cvss_vector": "",
     "nessus_plugin_ids": [],
     "qualys_qids": [],
     "owasp_web": "",
     "owasp_api": "",
-    "nist_csf2": [
-      "PR.PT-1"
-    ],
+    "nist_csf2": [],
     "nist_800_53": [
-      "SI-7",
-      "SC-7"
+      "SI-3",
+      "SI-4"
     ],
-    "nist_800_171": [
-      "3.14.3"
-    ],
-    "pci_dss_4": [
-      "5.2.2"
-    ],
-    "iso_27001": [
-      "A.12.2.1"
-    ],
-    "iso_27002": [
-      "8.7"
-    ],
-    "soc2": [
-      "CC6.8"
-    ],
-    "hitrust": [
-      "09.j"
-    ],
+    "nist_800_171": [],
+    "pci_dss_4": [],
+    "iso_27001": [],
+    "iso_27002": [],
+    "soc2": [],
+    "hitrust": [],
     "gdpr": [],
     "mitre_attack": [
       {
@@ -8182,17 +8168,150 @@
     "searchsploit_terms": [],
     "metasploit_modules": [],
     "kev": false,
-    "remediation_brief": "Enable Tamper Protection via Windows Security Center > Virus & threat protection > Virus & threat protection settings > Tamper Protection. For enterprise management, enable via Microsoft Defender for Endpoint (Intune). Note: GPO cannot enable Tamper Protection; it requires the security center or Intune.",
-    "remediation_component": "Configuration",
+    "remediation_brief": "Enable Tamper Protection via the Windows Security app or Intune. It cannot be enabled via Group Policy by design.",
+    "remediation_component": "",
     "remediation_category": "Endpoint Protection",
     "remediation_effort": "Easy",
-    "validation_tools": [
-      "dredge"
-    ]
+    "validation_tools": [],
+    "id": "DR-HDN-054",
+    "title": "Endpoint Protection: Defender Tamper Protection Disabled",
+    "risk": "HIGH",
+    "description": "Windows Defender Tamper Protection is disabled. Malware or an attacker can disable Defender protections programmatically.",
+    "impact": "Without Tamper Protection, an attacker with admin access can disable Defender via PowerShell, registry edits, or the sc command. Ransomware routinely disables AV before encrypting."
   },
   {
-    "id": "DR-HDN-053",
-    "title": "Hardening: Windows Defender Behavior Monitoring Disabled",
+    "aliases": [
+      "MAPS Disabled",
+      "Cloud-Delivered Protection Off"
+    ],
+    "source_tools": [
+      "dredge"
+    ],
+    "cwe": [],
+    "cve_examples": [],
+    "cvss_v3_base": null,
+    "cvss_vector": "",
+    "nessus_plugin_ids": [],
+    "qualys_qids": [],
+    "owasp_web": "",
+    "owasp_api": "",
+    "nist_csf2": [],
+    "nist_800_53": [
+      "SI-3"
+    ],
+    "nist_800_171": [],
+    "pci_dss_4": [],
+    "iso_27001": [],
+    "iso_27002": [],
+    "soc2": [],
+    "hitrust": [],
+    "gdpr": [],
+    "mitre_attack": [],
+    "searchsploit_terms": [],
+    "metasploit_modules": [],
+    "kev": false,
+    "remediation_brief": "Enable cloud protection: Set-MpPreference -MAPSReporting Advanced.",
+    "remediation_component": "",
+    "remediation_category": "Endpoint Protection",
+    "remediation_effort": "Easy",
+    "validation_tools": [],
+    "id": "DR-HDN-055",
+    "title": "Endpoint Protection: Defender Cloud Protection Disabled",
+    "risk": "MEDIUM",
+    "description": "Defender cloud-delivered protection is disabled. The endpoint relies solely on local signature definitions.",
+    "impact": "Cloud protection provides rapid response to zero-day threats through cloud-based machine learning. Without it, detection depends on local definitions which may be hours behind."
+  },
+  {
+    "aliases": [
+      "Antivirus Signatures Stale",
+      "Defender Definitions Old"
+    ],
+    "source_tools": [
+      "dredge"
+    ],
+    "cwe": [],
+    "cve_examples": [],
+    "cvss_v3_base": null,
+    "cvss_vector": "",
+    "nessus_plugin_ids": [],
+    "qualys_qids": [],
+    "owasp_web": "",
+    "owasp_api": "",
+    "nist_csf2": [],
+    "nist_800_53": [
+      "SI-3"
+    ],
+    "nist_800_171": [],
+    "pci_dss_4": [],
+    "iso_27001": [],
+    "iso_27002": [],
+    "soc2": [],
+    "hitrust": [],
+    "gdpr": [],
+    "mitre_attack": [],
+    "searchsploit_terms": [],
+    "metasploit_modules": [],
+    "kev": false,
+    "remediation_brief": "Update definitions: Update-MpSignature. Investigate why automatic updates are failing.",
+    "remediation_component": "",
+    "remediation_category": "Endpoint Protection",
+    "remediation_effort": "Easy",
+    "validation_tools": [],
+    "id": "DR-HDN-056",
+    "title": "Endpoint Protection: Defender Definitions Outdated",
+    "risk": "MEDIUM",
+    "description": "Antimalware definitions are outdated (more than 7 days old). Current threats may not be detected.",
+    "impact": "Outdated antivirus definitions miss newly discovered malware signatures. Threat actors routinely test payloads against current definitions, so stale definitions significantly reduce detection rates."
+  },
+  {
+    "aliases": [
+      "AV Disabled",
+      "Antivirus Not Running"
+    ],
+    "source_tools": [
+      "dredge"
+    ],
+    "cwe": [],
+    "cve_examples": [],
+    "cvss_v3_base": null,
+    "cvss_vector": "",
+    "nessus_plugin_ids": [],
+    "qualys_qids": [],
+    "owasp_web": "",
+    "owasp_api": "",
+    "nist_csf2": [],
+    "nist_800_53": [
+      "SI-3"
+    ],
+    "nist_800_171": [],
+    "pci_dss_4": [],
+    "iso_27001": [],
+    "iso_27002": [],
+    "soc2": [],
+    "hitrust": [],
+    "gdpr": [],
+    "mitre_attack": [
+      {
+        "technique": "T1562.001",
+        "tactic": "Defense Evasion",
+        "name": "Disable or Modify Tools"
+      }
+    ],
+    "searchsploit_terms": [],
+    "metasploit_modules": [],
+    "kev": false,
+    "remediation_brief": "Re-enable the disabled antivirus product. Investigate why it was disabled.",
+    "remediation_component": "",
+    "remediation_category": "Endpoint Protection",
+    "remediation_effort": "Easy",
+    "validation_tools": [],
+    "id": "DR-HDN-057",
+    "title": "Endpoint Protection: Antivirus Product Disabled",
+    "risk": "HIGH",
+    "description": "Installed antivirus product(s) are disabled. A disabled AV provides zero endpoint protection.",
+    "impact": "A disabled antivirus product provides zero protection. This may indicate tampering by malware or an attacker."
+  },
+  {
     "aliases": [
       "Behavior Monitoring Off",
       "Defender RealTimeScanDirection"
@@ -8200,124 +8319,41 @@
     "source_tools": [
       "dredge"
     ],
-    "risk": "MEDIUM",
-    "description": "Windows Defender behavior monitoring is disabled. This feature monitors running processes for suspicious activity patterns independent of signature-based detection.",
-    "impact": "Behavior monitoring detects fileless malware, living-off-the-land techniques, and process injection that signature-based scanning misses. Disabling it significantly reduces Defender's ability to detect advanced threats and post-exploitation activity.",
-    "cwe": [
-      "CWE-693"
-    ],
+    "cwe": [],
     "cve_examples": [],
-    "cvss_v3_base": 5.3,
-    "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:N",
+    "cvss_v3_base": null,
+    "cvss_vector": "",
     "nessus_plugin_ids": [],
     "qualys_qids": [],
     "owasp_web": "",
     "owasp_api": "",
-    "nist_csf2": [
-      "DE.CM-4"
-    ],
-    "nist_800_53": [
-      "SI-3",
-      "SI-4"
-    ],
-    "nist_800_171": [
-      "3.14.2"
-    ],
-    "pci_dss_4": [
-      "5.2.2"
-    ],
-    "iso_27001": [
-      "A.12.2.1"
-    ],
-    "iso_27002": [
-      "8.7"
-    ],
-    "soc2": [
-      "CC6.8"
-    ],
-    "hitrust": [
-      "09.j"
-    ],
-    "gdpr": [],
-    "mitre_attack": [
-      {
-        "technique": "T1562.001",
-        "tactic": "Defense Evasion",
-        "name": "Disable or Modify Tools"
-      }
-    ],
-    "searchsploit_terms": [],
-    "metasploit_modules": [],
-    "kev": false,
-    "remediation_brief": "Enable behavior monitoring via GPO: Computer Configuration > Administrative Templates > Windows Components > Microsoft Defender Antivirus > Real-time Protection > Turn on behavior monitoring. Or via PowerShell: Set-MpPreference -DisableBehaviorMonitoring $false.",
-    "remediation_component": "Configuration",
-    "remediation_category": "Endpoint Protection",
-    "remediation_effort": "Easy",
-    "validation_tools": [
-      "dredge"
-    ]
-  },
-  {
-    "id": "DR-HDN-054",
-    "title": "Hardening: Windows Defender PUA Protection Disabled",
-    "aliases": [
-      "PUA Detection Off",
-      "Potentially Unwanted Application Protection Disabled"
-    ],
-    "source_tools": [
-      "dredge"
-    ],
-    "risk": "LOW",
-    "description": "Windows Defender Potentially Unwanted Application (PUA) protection is not enabled. PUA protection blocks adware, bundleware, and other unwanted software that may degrade system performance or serve as an attack vector.",
-    "impact": "Without PUA protection, potentially unwanted applications such as adware, browser toolbars, cryptocurrency miners, and bundleware can be installed undetected. Some PUAs serve as initial access vectors or facilitate further compromise through bundled malware.",
-    "cwe": [
-      "CWE-693"
-    ],
-    "cve_examples": [],
-    "cvss_v3_base": 3.3,
-    "cvss_vector": "CVSS:3.1/AV:L/AC:L/PR:N/UI:R/S:U/C:N/I:L/A:N",
-    "nessus_plugin_ids": [],
-    "qualys_qids": [],
-    "owasp_web": "",
-    "owasp_api": "",
-    "nist_csf2": [
-      "DE.CM-4"
-    ],
+    "nist_csf2": [],
     "nist_800_53": [
       "SI-3"
     ],
-    "nist_800_171": [
-      "3.14.2"
-    ],
-    "pci_dss_4": [
-      "5.2.2"
-    ],
-    "iso_27001": [
-      "A.12.2.1"
-    ],
-    "iso_27002": [
-      "8.7"
-    ],
-    "soc2": [
-      "CC6.8"
-    ],
+    "nist_800_171": [],
+    "pci_dss_4": [],
+    "iso_27001": [],
+    "iso_27002": [],
+    "soc2": [],
     "hitrust": [],
     "gdpr": [],
     "mitre_attack": [],
     "searchsploit_terms": [],
     "metasploit_modules": [],
     "kev": false,
-    "remediation_brief": "Enable PUA protection via GPO: Computer Configuration > Administrative Templates > Windows Components > Microsoft Defender Antivirus > Configure detection for potentially unwanted applications (set to Enabled/Block). Or via PowerShell: Set-MpPreference -PUAProtection Enabled.",
-    "remediation_component": "Configuration",
+    "remediation_brief": "Re-enable all sub-protections via PowerShell: Set-MpPreference -DisableBehaviorMonitoring $false -DisableIOAVProtection $false -DisableRealtimeMonitoring $false.",
+    "remediation_component": "",
     "remediation_category": "Endpoint Protection",
     "remediation_effort": "Easy",
-    "validation_tools": [
-      "dredge"
-    ]
+    "validation_tools": [],
+    "id": "DR-HDN-058",
+    "title": "Endpoint Protection: Defender Sub-Protections Disabled",
+    "risk": "MEDIUM",
+    "description": "One or more Defender real-time sub-protections are disabled (behavior monitoring, IOAV, or on-access protection).",
+    "impact": "Disabling behaviour monitoring, IOAV, or on-access protection weakens the overall Defender posture even when real-time protection shows as enabled."
   },
   {
-    "id": "DR-HDN-055",
-    "title": "Hardening: DNS over HTTPS (DoH) Not Configured",
     "aliases": [
       "DNS DoH Disabled",
       "DNS Privacy Not Enabled"
@@ -8325,35 +8361,23 @@
     "source_tools": [
       "dredge"
     ],
-    "risk": "LOW",
-    "description": "DNS over HTTPS (DoH) is not enabled on this Windows system. Traditional DNS queries are sent in plaintext, visible to network observers and susceptible to interception and modification.",
-    "impact": "Plaintext DNS exposes browsing patterns and service lookups to any network observer (ISP, Wi-Fi eavesdropper, MITM attacker). DNS responses can also be spoofed to redirect users to malicious sites. DoH encrypts DNS queries to prevent both surveillance and tampering.",
-    "cwe": [
-      "CWE-319"
-    ],
+    "cwe": [],
     "cve_examples": [],
-    "cvss_v3_base": 3.7,
-    "cvss_vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:N/A:N",
+    "cvss_v3_base": null,
+    "cvss_vector": "",
     "nessus_plugin_ids": [],
     "qualys_qids": [],
     "owasp_web": "",
     "owasp_api": "",
-    "nist_csf2": [
-      "PR.DS-2"
-    ],
+    "nist_csf2": [],
     "nist_800_53": [
-      "SC-8"
+      "SC-8",
+      "SC-20"
     ],
-    "nist_800_171": [
-      "3.13.8"
-    ],
+    "nist_800_171": [],
     "pci_dss_4": [],
-    "iso_27001": [
-      "A.13.1.1"
-    ],
-    "iso_27002": [
-      "8.20"
-    ],
+    "iso_27001": [],
+    "iso_27002": [],
     "soc2": [],
     "hitrust": [],
     "gdpr": [],
@@ -8367,224 +8391,63 @@
     "searchsploit_terms": [],
     "metasploit_modules": [],
     "kev": false,
-    "remediation_brief": "Enable DNS over HTTPS via GPO: Computer Configuration > Administrative Templates > Network > DNS Client > Configure DNS over HTTPS (DoH) name resolution. Or via registry: Set HKLM\\SYSTEM\\CurrentControlSet\\Services\\Dnscache\\Parameters\\EnableAutoDoh to 2. Configure DoH-capable DNS servers (e.g. Cloudflare 1.1.1.1, Google 8.8.8.8).",
-    "remediation_component": "Network",
-    "remediation_category": "Cryptography",
-    "remediation_effort": "Easy",
-    "validation_tools": [
-      "dredge"
-    ]
-  },
-  {
-    "id": "DR-HDN-056",
-    "title": "Hardening: Screen Lock Not Configured or Timeout Too Long",
-    "aliases": [
-      "Screensaver Lock Missing",
-      "Inactivity Timeout Not Set",
-      "Screen Lock Disabled"
-    ],
-    "source_tools": [
-      "dredge"
-    ],
-    "risk": "MEDIUM",
-    "description": "The system's screen lock policy is not adequately configured. Either the screensaver is not set to require a password on resume, the inactivity timeout exceeds 15 minutes, or no screen lock policy is enforced at all.",
-    "impact": "Without a timely screen lock, an unattended workstation provides unrestricted physical access to the logged-in user's session, data, and privileges. This enables shoulder surfing, unauthorized data access, and privilege abuse by anyone with physical proximity.",
-    "cwe": [
-      "CWE-287"
-    ],
-    "cve_examples": [],
-    "cvss_v3_base": 4.6,
-    "cvss_vector": "CVSS:3.1/AV:P/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
-    "nessus_plugin_ids": [],
-    "qualys_qids": [],
-    "owasp_web": "",
-    "owasp_api": "",
-    "nist_csf2": [
-      "PR.AC-7"
-    ],
-    "nist_800_53": [
-      "AC-11",
-      "AC-12"
-    ],
-    "nist_800_171": [
-      "3.1.10"
-    ],
-    "pci_dss_4": [
-      "8.2.8"
-    ],
-    "iso_27001": [
-      "A.11.2.8"
-    ],
-    "iso_27002": [
-      "6.3"
-    ],
-    "soc2": [
-      "CC6.1"
-    ],
-    "hitrust": [
-      "01.t"
-    ],
-    "gdpr": [
-      "Art. 32"
-    ],
-    "mitre_attack": [
-      {
-        "technique": "T1078",
-        "tactic": "Persistence",
-        "name": "Valid Accounts"
-      }
-    ],
-    "searchsploit_terms": [],
-    "metasploit_modules": [],
-    "kev": false,
-    "remediation_brief": "Configure screen lock via GPO: User Configuration > Administrative Templates > Control Panel > Personalization. Set 'Enable screen saver' to Enabled, 'Password protect the screen saver' to Enabled, and 'Screen saver timeout' to 900 seconds (15 minutes) or less. Also configure the machine inactivity limit via Security Settings > Local Policies > Security Options > 'Interactive logon: Machine inactivity limit'.",
-    "remediation_component": "Configuration",
-    "remediation_category": "Access Control",
-    "remediation_effort": "Easy",
-    "validation_tools": [
-      "dredge"
-    ]
-  },
-  {
-    "id": "DR-HDN-057",
-    "title": "Hardening: Windows Firewall Profile Disabled",
-    "aliases": [
-      "Firewall Disabled",
-      "Windows Firewall Off",
-      "Host Firewall Not Enabled"
-    ],
-    "source_tools": [
-      "dredge"
-    ],
-    "risk": "HIGH",
-    "description": "One or more Windows Firewall profiles (Domain, Private, Public) are disabled. The Windows Firewall provides host-based network filtering that limits exposure to network-based attacks.",
-    "impact": "A disabled host firewall exposes all listening services to the network without filtering. This increases the attack surface for remote exploitation, lateral movement, and worm propagation. Even behind a perimeter firewall, host-based firewalling is critical for defense-in-depth.",
-    "cwe": [
-      "CWE-284"
-    ],
-    "cve_examples": [],
-    "cvss_v3_base": 6.5,
-    "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:L",
-    "nessus_plugin_ids": [
-      56210
-    ],
-    "qualys_qids": [
-      90948
-    ],
-    "owasp_web": "",
-    "owasp_api": "",
-    "nist_csf2": [
-      "PR.PT-4"
-    ],
-    "nist_800_53": [
-      "SC-7"
-    ],
-    "nist_800_171": [
-      "3.13.1",
-      "3.13.6"
-    ],
-    "pci_dss_4": [
-      "1.2.1"
-    ],
-    "iso_27001": [
-      "A.13.1.1"
-    ],
-    "iso_27002": [
-      "8.22"
-    ],
-    "soc2": [
-      "CC6.6"
-    ],
-    "hitrust": [
-      "09.m"
-    ],
-    "gdpr": [
-      "Art. 32"
-    ],
-    "mitre_attack": [
-      {
-        "technique": "T1562.004",
-        "tactic": "Defense Evasion",
-        "name": "Disable or Modify System Firewall"
-      }
-    ],
-    "searchsploit_terms": [],
-    "metasploit_modules": [],
-    "kev": false,
-    "remediation_brief": "Enable Windows Firewall for all profiles via GPO: Computer Configuration > Windows Settings > Security Settings > Windows Defender Firewall with Advanced Security. Set 'Firewall state' to On for Domain, Private, and Public profiles. Configure inbound rules to allow only required services.",
-    "remediation_component": "Network",
+    "remediation_brief": "Enable DNS-over-HTTPS in Windows 11+: Settings > Network > DNS server assignment > Encrypted preferred. For older systems, deploy a local encrypted DNS proxy.",
+    "remediation_component": "",
     "remediation_category": "Network Security",
     "remediation_effort": "Moderate",
-    "validation_tools": [
-      "dredge"
-    ]
+    "validation_tools": [],
+    "id": "DR-HDN-059",
+    "title": "Network Hardening: DNS Client Security Not Configured",
+    "risk": "LOW",
+    "description": "DNS client security gaps: Neither DNS-over-HTTPS nor DNS-over-TLS is enabled; DNSSEC validation is not enabled.",
+    "impact": "Without encrypted DNS (DoH/DoT), all DNS queries are visible to network observers, leaking browsing activity and internal hostnames. Without DNSSEC validation, DNS responses can be spoofed to redirect traffic to attacker-controlled servers."
   },
   {
-    "id": "DR-HDN-058",
-    "title": "Hardening: Remote Assistance Enabled",
     "aliases": [
-      "Remote Assistance Allowed",
-      "MSRA Enabled"
+      "CIS Benchmark Non-Compliant",
+      "Baseline Drift"
     ],
     "source_tools": [
       "dredge"
     ],
-    "risk": "LOW",
-    "description": "Windows Remote Assistance (MSRA) is enabled, allowing users to invite others to view or control their desktop. In environments where this is not operationally required, it represents an unnecessary remote access vector.",
-    "impact": "Remote Assistance can be abused to gain interactive desktop access to a target system. If an attacker can social-engineer a user into sending an invitation, or if full control is enabled, the attacker gains complete interactive access to the user's session.",
-    "cwe": [
-      "CWE-284"
-    ],
+    "cwe": [],
     "cve_examples": [],
-    "cvss_v3_base": 3.1,
-    "cvss_vector": "CVSS:3.1/AV:N/AC:H/PR:L/UI:N/S:U/C:L/I:N/A:N",
+    "cvss_v3_base": null,
+    "cvss_vector": "",
     "nessus_plugin_ids": [],
     "qualys_qids": [],
     "owasp_web": "",
     "owasp_api": "",
     "nist_csf2": [
-      "PR.AC-3"
+      "PR.IP-1"
     ],
     "nist_800_53": [
-      "AC-3",
-      "AC-17"
+      "CM-6",
+      "CM-7"
     ],
-    "nist_800_171": [
-      "3.1.12"
-    ],
+    "nist_800_171": [],
     "pci_dss_4": [
-      "8.2.1"
+      "2.2.1"
     ],
-    "iso_27001": [
-      "A.9.1.2"
-    ],
-    "iso_27002": [
-      "5.15"
-    ],
-    "soc2": [
-      "CC6.1"
-    ],
-    "hitrust": [
-      "01.j"
-    ],
+    "iso_27001": [],
+    "iso_27002": [],
+    "soc2": [],
+    "hitrust": [],
     "gdpr": [],
-    "mitre_attack": [
-      {
-        "technique": "T1219",
-        "tactic": "Command and Control",
-        "name": "Remote Access Software"
-      }
-    ],
+    "mitre_attack": [],
     "searchsploit_terms": [],
     "metasploit_modules": [],
     "kev": false,
-    "remediation_brief": "Disable Remote Assistance via GPO: Computer Configuration > Administrative Templates > System > Remote Assistance > Configure Offer Remote Assistance (Disabled) and Configure Solicited Remote Assistance (Disabled). Or via registry: Set HKLM\\SYSTEM\\CurrentControlSet\\Control\\Remote Assistance\\fAllowToGetHelp to 0.",
-    "remediation_component": "Configuration",
-    "remediation_category": "Access Control",
-    "remediation_effort": "Easy",
-    "validation_tools": [
-      "dredge"
-    ]
+    "remediation_brief": "Apply the CIS Windows benchmark using Group Policy or a configuration management tool. Start with Level 1 settings, then evaluate Level 2 settings for applicability.",
+    "remediation_component": "",
+    "remediation_category": "Compliance",
+    "remediation_effort": "Significant",
+    "validation_tools": [],
+    "id": "DR-HDN-060",
+    "title": "Compliance: CIS Benchmark Baseline Deviations",
+    "risk": "MEDIUM",
+    "description": "Multiple settings deviate from the CIS Windows benchmark baseline.",
+    "impact": "CIS benchmarks represent industry-consensus hardening standards. Multiple deviations indicate the system has not been hardened according to best practices, increasing the overall attack surface."
   },
   {
     "id": "DR-NET-001",
@@ -8960,7 +8823,7 @@
     ],
     "risk": "HIGH",
     "description": "Active WMI event subscriptions (EventFilter + EventConsumer + FilterToConsumerBinding) were found on this system. WMI subscriptions execute automatically in response to system events and survive reboots, making them a powerful persistence mechanism.",
-    "impact": "WMI event subscriptions run with SYSTEM privileges and are difficult to detect through standard monitoring. An attacker can use them to execute malicious scripts or binaries when specific events occur (user logon, process creation, time-based triggers). WMI persistence is used by APT groups and is notoriously resistant to removal \u2014 it survives reinstallation of applications and many cleanup procedures.",
+    "impact": "WMI event subscriptions run with SYSTEM privileges and are difficult to detect through standard monitoring. An attacker can use them to execute malicious scripts or binaries when specific events occur (user logon, process creation, time-based triggers). WMI persistence is used by APT groups and is notoriously resistant to removal — it survives reinstallation of applications and many cleanup procedures.",
     "cwe": [
       "CWE-506"
     ],
@@ -9126,7 +8989,7 @@
       "dredge"
     ],
     "risk": "HIGH",
-    "description": "The AppInit_DLLs registry value is configured with one or more DLL paths. Windows loads any DLL listed in AppInit_DLLs into every process that loads user32.dll \u2014 which includes virtually all GUI applications. This mechanism is a well-known persistence and injection technique.",
+    "description": "The AppInit_DLLs registry value is configured with one or more DLL paths. Windows loads any DLL listed in AppInit_DLLs into every process that loads user32.dll — which includes virtually all GUI applications. This mechanism is a well-known persistence and injection technique.",
     "impact": "DLLs specified in AppInit_DLLs are loaded into every GUI process on the system, providing system-wide code injection. An attacker can use this for keylogging, credential interception, API hooking, or persistent backdoor access. The injected DLL runs with the privileges of each host process, potentially including SYSTEM-level services.",
     "cwe": [
       "CWE-427"
@@ -9281,7 +9144,7 @@
       "exploit/windows/local/registry_persistence"
     ],
     "kev": false,
-    "remediation_brief": "Audit IFEO registry entries: reg query \"HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options\" /s /v Debugger. Remove any unauthorized Debugger values. Deploy Sysmon with registry monitoring (Event IDs 12-14) targeting IFEO keys. Legitimate IFEO uses include application compatibility shims \u2014 verify with the application vendor before removing.",
+    "remediation_brief": "Audit IFEO registry entries: reg query \"HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options\" /s /v Debugger. Remove any unauthorized Debugger values. Deploy Sysmon with registry monitoring (Event IDs 12-14) targeting IFEO keys. Legitimate IFEO uses include application compatibility shims — verify with the application vendor before removing.",
     "remediation_component": "Configuration",
     "remediation_category": "Endpoint Security",
     "remediation_effort": "Easy",
@@ -9302,7 +9165,7 @@
     ],
     "risk": "CRITICAL",
     "description": "One or more Windows accessibility feature binaries (sethc.exe, utilman.exe, osk.exe, narrator.exe, magnify.exe, DisplaySwitch.exe) have been modified or replaced. The modification timestamp does not align with the OS installation date or last Windows Update, indicating potential tampering.",
-    "impact": "Replacing accessibility binaries with cmd.exe or a backdoor is a classic persistence technique that provides SYSTEM-level command prompt access from the Windows login screen \u2014 before any user has authenticated. An attacker can press Shift five times (sethc.exe), Win+U (utilman.exe), or similar shortcuts to trigger the backdoor. This survives reboots, user password changes, and most remediation attempts short of restoring the original binaries.",
+    "impact": "Replacing accessibility binaries with cmd.exe or a backdoor is a classic persistence technique that provides SYSTEM-level command prompt access from the Windows login screen — before any user has authenticated. An attacker can press Shift five times (sethc.exe), Win+U (utilman.exe), or similar shortcuts to trigger the backdoor. This survives reboots, user password changes, and most remediation attempts short of restoring the original binaries.",
     "cwe": [
       "CWE-506"
     ],
@@ -9376,7 +9239,7 @@
       "post/windows/manage/sticky_keys"
     ],
     "kev": false,
-    "remediation_brief": "Restore original accessibility binaries from a known-good source or Windows installation media: sfc /scannow or DISM /Online /Cleanup-Image /RestoreHealth. Verify file hashes against Microsoft published hashes. Investigate as a potential compromise \u2014 this finding indicates the system may have been backdoored. Deploy file integrity monitoring on %SystemRoot%\\System32\\sethc.exe, utilman.exe, osk.exe, narrator.exe, magnify.exe, DisplaySwitch.exe.",
+    "remediation_brief": "Restore original accessibility binaries from a known-good source or Windows installation media: sfc /scannow or DISM /Online /Cleanup-Image /RestoreHealth. Verify file hashes against Microsoft published hashes. Investigate as a potential compromise — this finding indicates the system may have been backdoored. Deploy file integrity monitoring on %SystemRoot%\\System32\\sethc.exe, utilman.exe, osk.exe, narrator.exe, magnify.exe, DisplaySwitch.exe.",
     "remediation_component": "Application",
     "remediation_category": "Endpoint Security",
     "remediation_effort": "Easy",
@@ -9396,7 +9259,7 @@
     ],
     "risk": "MEDIUM",
     "description": "Custom print monitor DLLs were found registered in the system. Print monitors are loaded by the Print Spooler service (spoolsv.exe) which runs as SYSTEM. An unauthorized print monitor DLL provides persistent, SYSTEM-level code execution.",
-    "impact": "Print monitor DLLs are loaded by the spoolsv.exe service at startup and run with SYSTEM privileges. An attacker who registers a malicious DLL as a print monitor achieves persistence that survives reboots and is difficult to detect \u2014 the DLL appears as a legitimate print subsystem component. This technique is used by APT groups for long-term persistence.",
+    "impact": "Print monitor DLLs are loaded by the spoolsv.exe service at startup and run with SYSTEM privileges. An attacker who registers a malicious DLL as a print monitor achieves persistence that survives reboots and is difficult to detect — the DLL appears as a legitimate print subsystem component. This technique is used by APT groups for long-term persistence.",
     "cwe": [
       "CWE-427"
     ],
@@ -9552,7 +9415,7 @@
   },
   {
     "id": "DR-PERS-009",
-    "title": "Persistence: Suspicious Scheduled Tasks",
+    "title": "Persistence: Suspicious Scheduled Task Detected",
     "aliases": [
       "Malicious Scheduled Task",
       "Suspicious Task Scheduler Entry",
@@ -9636,7 +9499,7 @@
     ],
     "risk": "HIGH",
     "description": "The AlwaysInstallElevated policy is enabled in both HKLM and HKCU registry hives. This Windows Installer policy allows any user to install MSI packages with SYSTEM-level privileges, regardless of the user's actual privilege level.",
-    "impact": "Any standard user can create a malicious MSI package (e.g., using msfvenom) and install it with SYSTEM privileges. This is a trivial, reliable privilege escalation path that requires no exploitation of software vulnerabilities \u2014 only the misconfiguration itself. Tools like PowerUp, WinPEAS, and Metasploit all check for and exploit this setting.",
+    "impact": "Any standard user can create a malicious MSI package (e.g., using msfvenom) and install it with SYSTEM privileges. This is a trivial, reliable privilege escalation path that requires no exploitation of software vulnerabilities — only the misconfiguration itself. Tools like PowerUp, WinPEAS, and Metasploit all check for and exploit this setting.",
     "cwe": [
       "CWE-269"
     ],
@@ -13169,6 +13032,52 @@
     "validation_tools": [
       "dredge"
     ]
+  },
+  {
+    "aliases": [],
+    "source_tools": [
+      "dredge"
+    ],
+    "cwe": [],
+    "cve_examples": [],
+    "cvss_v3_base": null,
+    "cvss_vector": "",
+    "nessus_plugin_ids": [],
+    "qualys_qids": [],
+    "owasp_web": "",
+    "owasp_api": "",
+    "nist_csf2": [],
+    "nist_800_53": [
+      "SI-4",
+      "AU-12"
+    ],
+    "nist_800_171": [],
+    "pci_dss_4": [],
+    "iso_27001": [],
+    "iso_27002": [],
+    "soc2": [],
+    "hitrust": [],
+    "gdpr": [],
+    "mitre_attack": [
+      {
+        "technique": "T1562.001",
+        "tactic": "Defense Evasion",
+        "name": "Disable or Modify Tools"
+      }
+    ],
+    "searchsploit_terms": [],
+    "metasploit_modules": [],
+    "kev": false,
+    "remediation_brief": "Update the Sysmon configuration to include all critical event types. Use a comprehensive config like SwiftOnSecurity/sysmon-config or olafhartong/sysmon-modular as a baseline. Deploy with: sysmon -c <config.xml>.",
+    "remediation_component": "",
+    "remediation_category": "Monitoring",
+    "remediation_effort": "Easy",
+    "validation_tools": [],
+    "id": "DR-SYS-014",
+    "title": "Monitoring: Sysmon Configuration Incomplete",
+    "risk": "MEDIUM",
+    "description": "Sysmon is installed but critical event categories are not present in the active configuration.",
+    "impact": "Sysmon is installed but not logging critical event categories needed for threat detection. Missing categories mean gaps in visibility for process creation, network connections, remote thread injection, or registry modifications — core telemetry for detecting adversary tradecraft."
   },
   {
     "id": "DR-USR-001",

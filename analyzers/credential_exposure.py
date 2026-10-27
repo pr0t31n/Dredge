@@ -301,10 +301,10 @@ class CredentialExposureAnalyzer(BaseAnalyzer):
         autologon = reg.get("autologon", {})
         if not isinstance(autologon, dict):
             return
-        enabled = autologon.get("AutoAdminLogon")
-        username = autologon.get("DefaultUserName", "")
-        password = autologon.get("DefaultPassword")
-        domain = autologon.get("DefaultDomainName", "")
+        enabled = autologon.get("auto_admin_logon", autologon.get("AutoAdminLogon"))
+        username = autologon.get("default_user_name", autologon.get("DefaultUserName", ""))
+        password = autologon.get("default_password", autologon.get("DefaultPassword"))
+        domain = autologon.get("default_domain", autologon.get("DefaultDomainName", ""))
         if str(enabled) != "1":
             return
         has_cleartext = password is not None and str(password).strip() != ""
