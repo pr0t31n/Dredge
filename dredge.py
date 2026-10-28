@@ -67,6 +67,21 @@ except ImportError:
     _cmd_assemble = None
 
 
+_FLUSH_DIR: Path | None = None
+_FLUSH_FINDINGS: list = []
+
+
+def _flush_findings_to_disk():
+    if _FLUSH_DIR is None:
+        return
+    try:
+        (_FLUSH_DIR / "findings.json").write_text(
+            json.dumps(_FLUSH_FINDINGS, indent=2, ensure_ascii=False),
+            encoding="utf-8")
+    except Exception:
+        pass
+
+
 def _log(msg, level="INFO"):
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
     line = f"[{ts}] {level} {msg}"
@@ -154,6 +169,8 @@ def run_analyzers(data, hostname, ip, os_info, threat_intel, skip=None):
             analyzer = cls(data, hostname, ip, os_info=os_info, threat_intel=threat_intel)
             findings = analyzer.analyze()
             all_findings.extend(findings)
+            _FLUSH_FINDINGS.extend(findings)
+            _flush_findings_to_disk()
             analyzers_run.append(name)
             _log(f"  {name}: {len(findings)} findings")
         except Exception as e:
@@ -333,6 +350,8 @@ def main():
     global _pause
     _out_dir = Path(args.output_dir).resolve()
     _out_dir.mkdir(parents=True, exist_ok=True)
+    global _FLUSH_DIR
+    _FLUSH_DIR = _out_dir
     if _pp is not None:
         _pause = _pp.PauseManager(_out_dir, "dredge")
         _pause.start_watcher(grace_period=60)
@@ -429,6 +448,8 @@ def main():
             p = parser_cls(fpath, hostname=hostname, ip=ip)
             ext_findings = p.parse()
             findings.extend(ext_findings)
+            _FLUSH_FINDINGS.extend(ext_findings)
+            _flush_findings_to_disk()
             _log(f"  {pname}: {len(ext_findings)} findings ingested")
         except Exception as e:
             _log(f"  {pname} parser failed: {e}", level="ERROR")
