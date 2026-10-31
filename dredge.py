@@ -70,6 +70,18 @@ except ImportError:
 _FLUSH_DIR: Path | None = None
 _FLUSH_FINDINGS: list = []
 
+_fdb = None
+_db_path = os.environ.get("PR0T31N_FINDINGS_DB")
+if _db_path:
+    try:
+        import sys as _s
+        if "/opt/pr0t31n/shared" not in _s.path:
+            _s.path.insert(0, "/opt/pr0t31n/shared")
+        import pr0t31n_findings_db
+        _fdb = pr0t31n_findings_db.FindingsDB(_db_path)
+    except Exception:
+        _fdb = None
+
 
 def _flush_findings_to_disk():
     if _FLUSH_DIR is None:
@@ -241,6 +253,11 @@ def write_output(findings, summary, output_dir, client_short=None, data=None):
     summary_json = out / "summary.json"
 
     write_findings_json(findings, findings_json)
+    if _fdb:
+        try:
+            _fdb.bulk_insert(findings)
+        except Exception:
+            pass
     write_findings_csv(findings, findings_csv)
     summary_json.write_text(json.dumps(summary, indent=2), encoding="utf-8")
 
