@@ -183,6 +183,30 @@ def run_analyzers(data, hostname, ip, os_info, threat_intel, skip=None):
             all_findings.extend(findings)
             _FLUSH_FINDINGS.extend(findings)
             _flush_findings_to_disk()
+            for _f in findings:
+                if _fdb:
+                    try:
+                        _fdb.insert_finding(_f)
+                    except Exception:
+                        pass
+                if MANAGED:
+                    try:
+                        print(_CP_FINDING + json.dumps({
+                            "title": _f.get("title", ""),
+                            "ip": _f.get("ip", ""),
+                            "port": _f.get("port", 0),
+                            "hostname": _f.get("hostname", ""),
+                            "risk": (_f.get("risk") or "INFO").upper(),
+                            "description": _f.get("description", ""),
+                            "sources": _f.get("sources", "dredge"),
+                            "service": _f.get("service", ""),
+                            "affected": _f.get("affected", ""),
+                            "cves": _f.get("cves", ""),
+                            "output_file": _f.get("output_file", ""),
+                            "remediation": _f.get("remediation", ""),
+                        }, ensure_ascii=False), flush=True)
+                    except Exception:
+                        pass
             analyzers_run.append(name)
             _log(f"  {name}: {len(findings)} findings")
         except Exception as e:
@@ -253,33 +277,8 @@ def write_output(findings, summary, output_dir, client_short=None, data=None):
     summary_json = out / "summary.json"
 
     write_findings_json(findings, findings_json)
-    if _fdb:
-        try:
-            _fdb.bulk_insert(findings)
-        except Exception:
-            pass
     write_findings_csv(findings, findings_csv)
     summary_json.write_text(json.dumps(summary, indent=2), encoding="utf-8")
-
-    if MANAGED:
-        for _f in findings:
-            try:
-                print(_CP_FINDING + json.dumps({
-                    "title": _f.get("title", ""),
-                    "ip": _f.get("ip", ""),
-                    "port": _f.get("port", 0),
-                    "hostname": _f.get("hostname", ""),
-                    "risk": (_f.get("risk") or "INFO").upper(),
-                    "description": _f.get("description", ""),
-                    "sources": _f.get("sources", "dredge"),
-                    "service": _f.get("service", ""),
-                    "affected": _f.get("affected", ""),
-                    "cves": _f.get("cves", ""),
-                    "output_file": _f.get("output_file", ""),
-                    "remediation": _f.get("remediation", ""),
-                }, ensure_ascii=False), flush=True)
-            except Exception:
-                pass
 
     if _us:
         try:
@@ -467,6 +466,12 @@ def main():
             findings.extend(ext_findings)
             _FLUSH_FINDINGS.extend(ext_findings)
             _flush_findings_to_disk()
+            if _fdb:
+                for _ef in ext_findings:
+                    try:
+                        _fdb.insert_finding(_ef)
+                    except Exception:
+                        pass
             _log(f"  {pname}: {len(ext_findings)} findings ingested")
         except Exception as e:
             _log(f"  {pname} parser failed: {e}", level="ERROR")
