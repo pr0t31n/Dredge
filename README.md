@@ -5,6 +5,9 @@ Two-component tool for auditing Windows desktop and server security posture:
 1. **PowerShell Collector** (`dredge_collect.ps1`) — runs on the target Windows machine, gathers 26 categories of security-relevant data, outputs a single JSON file.
 2. **Python Analyzer** (`dredge.py`) — parses the collection JSON, runs 13 analysis modules, generates 100+ security findings mapped to CIS Benchmarks, DISA STIGs, and NIST frameworks.
 
+
+> **[View full documentation on the Codex Wiki](https://wiki.pr0t31n.com/tools/dredge)** — detailed features, CLI reference, findings catalogue, and integration guides.
+
 ## Requirements
 
 - **Collector**: PowerShell 5.1+ (Windows 7 SP1 through Windows Server 2025)
