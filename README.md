@@ -48,7 +48,7 @@ Security testing is a professional discipline with significant ethical and legal
 Two-component tool for auditing Windows desktop and server security posture:
 
 1. **PowerShell Collector** (`dredge_collect.ps1`) — runs on the target Windows machine, gathers 26 categories of security-relevant data, outputs a single JSON file.
-2. **Python Analyzer** (`dredge.py`) — parses the collection JSON, runs 13 analysis modules, generates 100+ security findings mapped to CIS Benchmarks, DISA STIGs, and NIST frameworks.
+2. **Python Analyzer** (`dredge.py`) — parses the collection JSON, runs 19 analysis modules, generates 150+ security findings mapped to CIS Benchmarks, DISA STIGs, and NIST frameworks.
 
 
 > **[View full documentation on the Codex Wiki](https://wiki.pr0t31n.com/tools/dredge)** — detailed features, CLI reference, findings catalogue, and integration guides.
@@ -97,6 +97,42 @@ python3 dredge.py --winrm-host 10.0.0.50 \
 
 Add Dredge to a Crucible project with "Endpoint Security" scope. Configure collection file path or WinRM credentials in the tool settings panel.
 
+## CLI Reference
+
+All flags accepted by `dredge.py`:
+
+| Flag | Short | Type / Default | Description |
+|------|-------|----------------|-------------|
+| `--collection` | `-c` | string | Path to collection JSON or CMD collection directory |
+| `--winrm-host` | | string | Target hostname/IP for WinRM remote collection |
+| `--winrm-user` | | string | WinRM username |
+| `--winrm-pass` | | string | WinRM password |
+| `--winrm-port` | | int / `5985` | WinRM port |
+| `--winrm-ssl` | | flag | Use HTTPS for WinRM |
+| `--ip` | | string / `""` | Target IP address (overrides collection data) |
+| `--hostname` | | string / `""` | Target hostname (overrides collection data) |
+| `--output-dir` | `-o` | string / `.` | Output directory for results |
+| `--client` | | string / `""` | Client short name for universal output structure |
+| `--skip-analyzers` | | list / `[]` | Analyzer modules to skip (space-separated names) |
+| `--skip-enrichment` | | flag | Skip threat intel API enrichment |
+| `--vt-api-key` | | string / `""` | VirusTotal API key for enrichment |
+| `--abuseipdb-key` | | string / `""` | AbuseIPDB API key for enrichment |
+| `--no-hash` | | flag | Skip process hash checking (passed to remote collection) |
+| `--json` | | flag | Output findings as JSON to stdout |
+| `--parse-seatbelt` | | string | Path to Seatbelt JSON output to ingest |
+| `--parse-winpeas` | | string | Path to WinPEAS output to ingest |
+| `--parse-hardeningkitty` | | string | Path to HardeningKitty CSV output to ingest |
+| `--parse-bloodhound` | | string | Path to SharpHound JSON export directory to ingest |
+| `--parse-pingcastle` | | string | Path to PingCastle XML report to ingest |
+| `--parse-privesccheck` | | string | Path to PrivescCheck JSON output to ingest |
+| `--version` | `-V` | flag | Print version and exit |
+
+**Notes:**
+- Either `--collection` or `--winrm-host` is required. When `--winrm-host` is given, `--winrm-user` and `--winrm-pass` are also required.
+- The `--parse-*` flags can be combined with `--collection` or `--winrm-host` to merge third-party tool output into the analysis.
+- `--ip` and `--hostname` override the values detected in the collection data; useful when the collector ran on a host with a different internal name.
+- `--skip-analyzers` accepts module names: `system`, `hardening`, `network`, `users`, `active_directory`, `processes`, `browsers`, `remote_mgmt`, `server_software`, `event_logs`, `software`, `certificates`, `compliance`, `credential_exposure`, `privilege_escalation`, `persistence`, `adcs`, `disk_storage`, `hardware`.
+
 ## PowerShell Collector Modules (26)
 
 | Module | Data Collected |
@@ -128,7 +164,7 @@ Add Dredge to a Crucible project with "Endpoint Security" scope. Configure colle
 | BitLocker | Encryption status per drive |
 | WindowsBackup | Backup config and schedule |
 
-## Analyzer Modules (13)
+## Analyzer Modules (19)
 
 | Module | Prefix | Findings | Key Checks |
 |--------|--------|----------|------------|
@@ -145,6 +181,12 @@ Add Dredge to a Crucible project with "Endpoint Security" scope. Configure colle
 | Software | DR-SFT | 4 | EOL software, known vulnerable versions |
 | Certificates | DR-CRT | 4 | Expired, weak, self-signed in trusted |
 | Compliance | DR-CMP | 5 | CIS/STIG aggregate scores |
+| Credential Exposure | DR-CRED | 10 | WiFi passwords, saved sessions, GPP cpassword, cloud creds, SSH keys |
+| Privilege Escalation | DR-PRIV | 6 | AlwaysInstallElevated, modifiable service binaries, DLL hijacking, token privileges |
+| Persistence | DR-PERS | 8 | WMI subscriptions, COM hijacking, AppInit DLLs, print monitors |
+| ADCS | DR-ADCS | 6 | ESC1-ESC6 certificate template misconfigurations |
+| Disk & Storage | DR-DISK | 12 | Disk health, unencrypted volumes, recovery partitions, storage capacity |
+| Hardware | DR-HW | 3 | GPU issues, firmware status, hardware inventory |
 
 ## Output Files
 
