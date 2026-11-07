@@ -2027,7 +2027,7 @@
     "kev": false,
     "remediation_brief": "Remove the malicious extension(s) immediately. Check other browsers on the system for the same extensions. Review browsing history for credential exposure. Force password resets for any accounts accessed while the extension was installed. Deploy browser extension whitelisting via Group Policy.",
     "remediation_component": "Configuration",
-    "remediation_category": "Malware Protection",
+    "remediation_category": "Endpoint Security",
     "remediation_effort": "Easy",
     "validation_tools": [
       "dredge"
@@ -2186,7 +2186,7 @@
     "kev": false,
     "remediation_brief": "Investigate each suspicious bookmark. Check if the user intentionally saved it or if it was created by malware. Review browser history for visits to the bookmarked URLs. Remove the bookmarks and block the domains at the DNS/proxy level. Scan the system for malware.",
     "remediation_component": "Configuration",
-    "remediation_category": "User Awareness",
+    "remediation_category": "Governance",
     "remediation_effort": "Easy",
     "validation_tools": [
       "dredge"
@@ -2647,7 +2647,7 @@
     "kev": false,
     "remediation_brief": "Develop a system hardening plan based on the CIS Benchmark for the specific Windows version. Prioritize Level 1 controls first as they have minimal operational impact. Implement changes through Group Policy for consistent deployment across endpoints.",
     "remediation_component": "Configuration",
-    "remediation_category": "System Hardening",
+    "remediation_category": "Hardening",
     "remediation_effort": "Easy",
     "validation_tools": [
       "dredge"
@@ -2727,7 +2727,7 @@
     "kev": false,
     "remediation_brief": "Address the specific failing CIS controls, prioritizing those related to authentication, access control, and network security. Focus on Level 1 controls that have not been implemented. Use Group Policy to enforce configurations across the organization.",
     "remediation_component": "Configuration",
-    "remediation_category": "System Hardening",
+    "remediation_category": "Hardening",
     "remediation_effort": "Easy",
     "validation_tools": [
       "dredge"
@@ -2975,7 +2975,7 @@
     "kev": false,
     "remediation_brief": "Use the hardening score as a baseline measurement and track improvements over time. Prioritize remediation of findings that contribute most to the score deficit. Establish a target hardening score and implement a continuous improvement program.",
     "remediation_component": "Configuration",
-    "remediation_category": "Risk Management",
+    "remediation_category": "Governance",
     "remediation_effort": "Easy",
     "validation_tools": [
       "dredge"
@@ -3056,7 +3056,7 @@
     "kev": false,
     "remediation_brief": "Configure WiFi profiles to not store passwords locally where possible. Use 802.1X/EAP certificate-based authentication instead of PSK. For WPA2-Personal/WPA3-Personal networks, limit local admin access and implement endpoint detection for credential harvesting tools. Remove saved profiles for networks no longer in use.",
     "remediation_component": "Configuration",
-    "remediation_category": "Credential Management",
+    "remediation_category": "Access Control",
     "remediation_effort": "Moderate",
     "validation_tools": [
       "dredge"
@@ -3150,7 +3150,7 @@
     "kev": false,
     "remediation_brief": "Remove saved credentials from remote access tools. Configure PuTTY and WinSCP to use SSH key authentication instead of passwords. Delete FileZilla sitemanager.xml entries that contain passwords. Remove .rdp files with embedded credentials. Use a secrets manager or enterprise password vault for remote access credentials.",
     "remediation_component": "Configuration",
-    "remediation_category": "Credential Management",
+    "remediation_category": "Access Control",
     "remediation_effort": "Moderate",
     "validation_tools": [
       "dredge"
@@ -3244,7 +3244,7 @@
     "kev": false,
     "remediation_brief": "Remove or securely delete all deployment files (unattend.xml, sysprep.xml) after provisioning. Encrypt connection strings in web.config using aspnet_regiis -pe. Replace cleartext passwords in applicationHost.config with encrypted alternatives. Audit the file system for credential remnants periodically using endpoint detection rules.",
     "remediation_component": "Configuration",
-    "remediation_category": "Credential Management",
+    "remediation_category": "Access Control",
     "remediation_effort": "Moderate",
     "validation_tools": [
       "dredge"
@@ -3427,7 +3427,7 @@
     "kev": false,
     "remediation_brief": "Remove long-lived cloud credential files from endpoints. Use short-lived tokens via IAM roles, instance profiles, or managed identities instead. For development machines, use aws-vault, Azure CLI managed identity, or workload identity federation. Rotate any credentials that were stored on disk. Implement cloud credential scanning in CI/CD pipelines.",
     "remediation_component": "Configuration",
-    "remediation_category": "Credential Management",
+    "remediation_category": "Access Control",
     "remediation_effort": "Moderate",
     "validation_tools": [
       "dredge"
@@ -3501,7 +3501,7 @@
     "kev": false,
     "remediation_brief": "Review stored credentials periodically and remove entries for systems or services no longer accessed. Educate users not to save domain credentials in Credential Manager for sensitive systems. Implement Credential Guard to protect LSASS-derived credentials from extraction.",
     "remediation_component": "Configuration",
-    "remediation_category": "Credential Management",
+    "remediation_category": "Access Control",
     "remediation_effort": "Easy",
     "validation_tools": [
       "dredge"
@@ -3582,7 +3582,7 @@
     "kev": false,
     "remediation_brief": "Implement Credential Guard to protect DPAPI master keys with virtualization-based security. Enforce strong passwords to make DPAPI key derivation computationally expensive. Restrict local admin access to limit offline DPAPI attacks. Use hardware-backed credential storage (TPM, smart cards) for the most sensitive credentials.",
     "remediation_component": "Configuration",
-    "remediation_category": "Credential Management",
+    "remediation_category": "Access Control",
     "remediation_effort": "Significant",
     "validation_tools": [
       "dredge"
@@ -3660,7 +3660,7 @@
     "kev": false,
     "remediation_brief": "Ensure KeePass databases use strong master passwords (20+ characters) combined with key files. Keep KeePass updated to the latest version. Restrict KeePass plugin loading to signed/approved plugins. Consider migrating to an enterprise password manager with centralized audit logging and MFA enforcement.",
     "remediation_component": "Application",
-    "remediation_category": "Credential Management",
+    "remediation_category": "Access Control",
     "remediation_effort": "Easy",
     "validation_tools": [
       "dredge"
@@ -3747,7 +3747,7 @@
     "kev": false,
     "remediation_brief": "Ensure all SSH private keys are protected with strong passphrases. Use ssh-agent for key caching rather than storing unprotected keys. Implement SSH certificate-based authentication for managed environments. Audit and rotate SSH keys regularly. Remove keys for systems no longer accessed. Consider hardware-backed keys (FIDO2/PIV).",
     "remediation_component": "Configuration",
-    "remediation_category": "Credential Management",
+    "remediation_category": "Access Control",
     "remediation_effort": "Moderate",
     "validation_tools": [
       "dredge"
@@ -3826,7 +3826,7 @@
     "kev": false,
     "remediation_brief": "Disable auto-logon by setting AutoAdminLogon to 0 and removing DefaultPassword from HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon. If auto-logon is required for kiosk scenarios, use Autologon.exe from Sysinternals (encrypts the password in LSA Secrets) and restrict physical/remote access to the system.",
     "remediation_component": "Authentication",
-    "remediation_category": "Credential Management",
+    "remediation_category": "Access Control",
     "remediation_effort": "Easy",
     "validation_tools": [
       "dredge",
@@ -4225,7 +4225,7 @@
     "kev": false,
     "remediation_brief": "Review each new service installation for legitimacy. Verify the service executable path, signing status, and the account used for installation. Remove unauthorized services and investigate how they were installed.",
     "remediation_component": "Configuration",
-    "remediation_category": "Change Management",
+    "remediation_category": "Governance",
     "remediation_effort": "Moderate",
     "validation_tools": [
       "dredge"
@@ -4551,7 +4551,7 @@
     "kev": true,
     "remediation_brief": "Disable SMBv1 by running: Disable-WindowsOptionalFeature -Online -FeatureName SMB1Protocol. For Server: Remove-WindowsFeature FS-SMB1. Alternatively set HKLM\\SYSTEM\\CurrentControlSet\\Services\\LanmanServer\\Parameters\\SMB1 to 0. Verify no legacy applications or devices require SMBv1 before disabling.",
     "remediation_component": "Configuration",
-    "remediation_category": "Protocol Security",
+    "remediation_category": "Network Security",
     "remediation_effort": "Easy",
     "validation_tools": [
       "dredge"
@@ -4633,7 +4633,7 @@
     "kev": false,
     "remediation_brief": "Enable mandatory SMB signing by setting RequireSecuritySignature to 1 at HKLM\\SYSTEM\\CurrentControlSet\\Services\\LanmanServer\\Parameters and LanmanWorkstation\\Parameters. Apply via Group Policy: Computer Configuration > Windows Settings > Security Settings > Local Policies > Security Options > Microsoft network server/client: Digitally sign communications (always).",
     "remediation_component": "Configuration",
-    "remediation_category": "Protocol Security",
+    "remediation_category": "Network Security",
     "remediation_effort": "Easy",
     "validation_tools": [
       "dredge"
@@ -4956,7 +4956,7 @@
     "kev": false,
     "remediation_brief": "Set UseLogonCredential to 0 at HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\WDigest. On Windows 8.1/Server 2012 R2 and later with KB2871997 installed, WDigest plaintext caching is disabled by default. Verify the registry value is explicitly set to 0 to prevent re-enablement by malware.",
     "remediation_component": "Configuration",
-    "remediation_category": "Credential Protection",
+    "remediation_category": "Access Control",
     "remediation_effort": "Easy",
     "validation_tools": [
       "dredge"
@@ -5034,7 +5034,7 @@
     "kev": false,
     "remediation_brief": "Enable LSA protection by setting RunAsPPL to 1 at HKLM\\SYSTEM\\CurrentControlSet\\Control\\Lsa. A system restart is required. Test application compatibility first as some security products may not function with PPL enabled. On Windows 11 22H2+, LSA protection is enabled by default.",
     "remediation_component": "Configuration",
-    "remediation_category": "Credential Protection",
+    "remediation_category": "Access Control",
     "remediation_effort": "Easy",
     "validation_tools": [
       "dredge"
@@ -5110,7 +5110,7 @@
     "kev": false,
     "remediation_brief": "Enable Credential Guard by setting EnableVirtualizationBasedSecurity to 1 at HKLM\\SYSTEM\\CurrentControlSet\\Control\\DeviceGuard and RequirePlatformSecurityFeatures to 1 or 3. Prerequisites: UEFI firmware, Secure Boot, TPM 2.0, and 64-bit Windows 10/11 Enterprise or Server 2016+. Apply via Group Policy: Computer Configuration > Administrative Templates > System > Device Guard.",
     "remediation_component": "Configuration",
-    "remediation_category": "Credential Protection",
+    "remediation_category": "Access Control",
     "remediation_effort": "Moderate",
     "validation_tools": [
       "dredge"
@@ -5189,7 +5189,7 @@
     "kev": false,
     "remediation_brief": "Disable LLMNR via Group Policy: Computer Configuration > Administrative Templates > Network > DNS Client > Turn off multicast name resolution. Set EnableMulticast to 0 at HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\DNSClient. Ensure proper DNS infrastructure is in place as a replacement.",
     "remediation_component": "Network",
-    "remediation_category": "Protocol Security",
+    "remediation_category": "Network Security",
     "remediation_effort": "Easy",
     "validation_tools": [
       "dredge"
@@ -5266,7 +5266,7 @@
     "kev": false,
     "remediation_brief": "Disable the WinHTTP Auto-Proxy Service (WinHttpAutoProxySvc) and set its startup to Disabled. In Internet Options, uncheck 'Automatically detect settings'. If proxy auto-configuration is needed, use explicit PAC file URLs rather than WPAD discovery.",
     "remediation_component": "Network",
-    "remediation_category": "Protocol Security",
+    "remediation_category": "Network Security",
     "remediation_effort": "Easy",
     "validation_tools": [
       "dredge"
@@ -5628,7 +5628,7 @@
     "kev": false,
     "remediation_brief": "Re-enable Windows Defender by removing any Group Policy that disables it (DisableAntiSpyware registry key), starting the WinDefend service, and ensuring real-time protection is turned on. If a third-party antivirus is intended, verify it is properly installed and running. Ensure at minimum one antimalware solution is active at all times.",
     "remediation_component": "Configuration",
-    "remediation_category": "Malware Protection",
+    "remediation_category": "Endpoint Security",
     "remediation_effort": "Easy",
     "validation_tools": [
       "dredge"
@@ -5700,7 +5700,7 @@
     "kev": false,
     "remediation_brief": "Review all Windows Defender exclusions and remove any that are not strictly necessary for application compatibility. Document the business justification for each remaining exclusion. Avoid broad exclusions (entire drives, common directories). Monitor excluded paths for suspicious file creation via separate detection mechanisms.",
     "remediation_component": "Configuration",
-    "remediation_category": "Malware Protection",
+    "remediation_category": "Endpoint Security",
     "remediation_effort": "Easy",
     "validation_tools": [
       "dredge"
@@ -5773,7 +5773,7 @@
     "kev": false,
     "remediation_brief": "Enable real-time protection in Windows Security settings or via PowerShell: Set-MpPreference -DisableRealtimeMonitoring $false. If Group Policy is preventing this, update the policy to allow real-time protection. Verify protection is active with Get-MpComputerStatus.",
     "remediation_component": "Configuration",
-    "remediation_category": "Malware Protection",
+    "remediation_category": "Endpoint Security",
     "remediation_effort": "Easy",
     "validation_tools": [
       "dredge"
@@ -6491,7 +6491,7 @@
     "kev": false,
     "remediation_brief": "Disable CredSSP delegation via Group Policy: Computer Configuration > Administrative Templates > System > Credentials Delegation > Allow delegating fresh credentials = Disabled. If CredSSP is required for specific administrative tasks, restrict delegation to specific trusted servers only (never use '*'). Apply CVE-2018-0886 patches. Consider using Remote Credential Guard instead of CredSSP for RDP sessions.",
     "remediation_component": "Configuration",
-    "remediation_category": "Credential Management",
+    "remediation_category": "Access Control",
     "remediation_effort": "Easy",
     "validation_tools": [
       "dredge"
@@ -7548,7 +7548,7 @@
     "kev": false,
     "remediation_brief": "Enable Advanced Audit Policy via Group Policy for: Logon, User Account Management, Credential Validation, Process Creation, and Audit Policy Change subcategories.",
     "remediation_component": "Configuration",
-    "remediation_category": "Logging",
+    "remediation_category": "Logging and Monitoring",
     "remediation_effort": "Easy",
     "validation_tools": [
       "auditpol"
@@ -7688,7 +7688,7 @@
     "kev": false,
     "remediation_brief": "Set SCENoApplyLegacyAuditPolicy to 1 under HKLM\\SYSTEM\\CurrentControlSet\\Control\\Lsa and use only Advanced Audit Policy Configuration in Group Policy.",
     "remediation_component": "Configuration",
-    "remediation_category": "Logging",
+    "remediation_category": "Logging and Monitoring",
     "remediation_effort": "Easy",
     "validation_tools": [
       "reg.exe",
@@ -7905,7 +7905,7 @@
     "kev": false,
     "remediation_brief": "Enable WEC: wecutil qc. Configure subscriptions via Group Policy (Computer Configuration > Administrative Templates > Windows Components > Event Forwarding).",
     "remediation_component": "",
-    "remediation_category": "Monitoring",
+    "remediation_category": "Logging and Monitoring",
     "remediation_effort": "Moderate",
     "validation_tools": [],
     "id": "DR-HDN-048",
@@ -7945,7 +7945,7 @@
     "kev": false,
     "remediation_brief": "Create WEF subscriptions using wecutil cs <subscription.xml> or via Group Policy. Forward at minimum: Security log, Sysmon, PowerShell, and AppLocker events.",
     "remediation_component": "",
-    "remediation_category": "Monitoring",
+    "remediation_category": "Logging and Monitoring",
     "remediation_effort": "Moderate",
     "validation_tools": [],
     "id": "DR-HDN-049",
@@ -8041,7 +8041,7 @@
     "kev": false,
     "remediation_brief": "Enable 'Special Logon' auditing via: auditpol /set /subcategory:\"Special Logon\" /success:enable /failure:enable.",
     "remediation_component": "",
-    "remediation_category": "Monitoring",
+    "remediation_category": "Logging and Monitoring",
     "remediation_effort": "Easy",
     "validation_tools": [],
     "id": "DR-HDN-051",
@@ -8081,7 +8081,7 @@
     "kev": false,
     "remediation_brief": "Enable 'Account Lockout' auditing via: auditpol /set /subcategory:\"Account Lockout\" /success:enable /failure:enable.",
     "remediation_component": "",
-    "remediation_category": "Monitoring",
+    "remediation_category": "Logging and Monitoring",
     "remediation_effort": "Easy",
     "validation_tools": [],
     "id": "DR-HDN-052",
@@ -8121,7 +8121,7 @@
     "kev": false,
     "remediation_brief": "Enable 'Removable Storage' auditing via: auditpol /set /subcategory:\"Removable Storage\" /success:enable /failure:enable.",
     "remediation_component": "",
-    "remediation_category": "Monitoring",
+    "remediation_category": "Logging and Monitoring",
     "remediation_effort": "Easy",
     "validation_tools": [],
     "id": "DR-HDN-053",
@@ -8170,7 +8170,7 @@
     "kev": false,
     "remediation_brief": "Enable Tamper Protection via the Windows Security app or Intune. It cannot be enabled via Group Policy by design.",
     "remediation_component": "",
-    "remediation_category": "Endpoint Protection",
+    "remediation_category": "Endpoint Security",
     "remediation_effort": "Easy",
     "validation_tools": [],
     "id": "DR-HDN-054",
@@ -8212,7 +8212,7 @@
     "kev": false,
     "remediation_brief": "Enable cloud protection: Set-MpPreference -MAPSReporting Advanced.",
     "remediation_component": "",
-    "remediation_category": "Endpoint Protection",
+    "remediation_category": "Endpoint Security",
     "remediation_effort": "Easy",
     "validation_tools": [],
     "id": "DR-HDN-055",
@@ -8254,7 +8254,7 @@
     "kev": false,
     "remediation_brief": "Update definitions: Update-MpSignature. Investigate why automatic updates are failing.",
     "remediation_component": "",
-    "remediation_category": "Endpoint Protection",
+    "remediation_category": "Endpoint Security",
     "remediation_effort": "Easy",
     "validation_tools": [],
     "id": "DR-HDN-056",
@@ -8302,7 +8302,7 @@
     "kev": false,
     "remediation_brief": "Re-enable the disabled antivirus product. Investigate why it was disabled.",
     "remediation_component": "",
-    "remediation_category": "Endpoint Protection",
+    "remediation_category": "Endpoint Security",
     "remediation_effort": "Easy",
     "validation_tools": [],
     "id": "DR-HDN-057",
@@ -8344,7 +8344,7 @@
     "kev": false,
     "remediation_brief": "Re-enable all sub-protections via PowerShell: Set-MpPreference -DisableBehaviorMonitoring $false -DisableIOAVProtection $false -DisableRealtimeMonitoring $false.",
     "remediation_component": "",
-    "remediation_category": "Endpoint Protection",
+    "remediation_category": "Endpoint Security",
     "remediation_effort": "Easy",
     "validation_tools": [],
     "id": "DR-HDN-058",
@@ -9480,7 +9480,7 @@
     "kev": false,
     "remediation_brief": "Investigate each flagged scheduled task. Remove tasks that are not legitimate. For legitimate tasks, move executables to protected directories (Program Files). Restrict scheduled task creation via GPO to administrators only. Monitor Task Scheduler event logs (Event IDs 106, 140, 141) for unauthorized task creation.",
     "remediation_component": "Configuration",
-    "remediation_category": "Endpoint Protection",
+    "remediation_category": "Endpoint Security",
     "remediation_effort": "Moderate",
     "validation_tools": [
       "dredge",
@@ -10185,7 +10185,7 @@
     "kev": false,
     "remediation_brief": "Investigate each process: check file hash against VirusTotal, examine parent process chain, check for associated network connections. Implement AppLocker or WDAC policies to block executable execution from temp directories. Enable Windows Defender ASR rules to block execution from temp paths.",
     "remediation_component": "Configuration",
-    "remediation_category": "Malware Protection",
+    "remediation_category": "Endpoint Security",
     "remediation_effort": "Moderate",
     "validation_tools": [
       "dredge"
@@ -11171,7 +11171,7 @@
     "kev": false,
     "remediation_brief": "Review unauthorized software with the system owner to determine if it should be added to the approved list or removed. Implement application control policies (AppLocker, WDAC) to prevent installation of unapproved software.",
     "remediation_component": "Configuration",
-    "remediation_category": "Configuration Management",
+    "remediation_category": "Configuration",
     "remediation_effort": "Easy",
     "validation_tools": [
       "dredge"
@@ -11876,7 +11876,7 @@
     "kev": true,
     "remediation_brief": "Remove or stop the 'Default Web Site' if it is not needed. For production sites, create named sites with specific bindings and remove all default content, sample applications, and documentation.",
     "remediation_component": "Configuration",
-    "remediation_category": "Server Hardening",
+    "remediation_category": "Hardening",
     "remediation_effort": "Easy",
     "validation_tools": [
       "dredge"
@@ -12493,7 +12493,7 @@
     "kev": false,
     "remediation_brief": "Configure Windows Server Backup or a third-party backup solution to perform regular system state and data backups. Store backups on a separate, isolated storage target. Test backup restoration procedures regularly to ensure recoverability.",
     "remediation_component": "Configuration",
-    "remediation_category": "Disaster Recovery",
+    "remediation_category": "Business Continuity",
     "remediation_effort": "Moderate",
     "validation_tools": [
       "dredge"
@@ -12561,7 +12561,7 @@
     "kev": false,
     "remediation_brief": "Investigate why backups have not completed recently. Check backup job schedules, storage target availability, and backup service health. Resume regular backup operations and configure alerting for backup failures.",
     "remediation_component": "Configuration",
-    "remediation_category": "Disaster Recovery",
+    "remediation_category": "Business Continuity",
     "remediation_effort": "Easy",
     "validation_tools": [
       "dredge"
@@ -12771,7 +12771,7 @@
     "kev": false,
     "remediation_brief": "Enable Secure Boot in the system's UEFI firmware settings. Ensure the operating system was installed in UEFI mode (not legacy BIOS). Verify that all boot components (bootloader, kernel, drivers) are properly signed. Note that enabling Secure Boot on a legacy BIOS-installed system requires OS reinstallation in UEFI mode.",
     "remediation_component": "Configuration",
-    "remediation_category": "System Integrity",
+    "remediation_category": "Configuration",
     "remediation_effort": "Moderate",
     "validation_tools": [
       "dredge"
@@ -12851,7 +12851,7 @@
     "kev": false,
     "remediation_brief": "Install Sysmon from Microsoft Sysinternals: sysmon64.exe -accepteula -i sysmonconfig.xml. Use a community-maintained configuration such as SwiftOnSecurity/sysmon-config or olafhartong/sysmon-modular as a starting point. Key event types to enable: Process creation (Event 1), Network connection (Event 3), File creation (Event 11), Registry modification (Event 13), WMI events (Events 19-21). Forward Sysmon logs to a SIEM for detection and alerting.",
     "remediation_component": "Configuration",
-    "remediation_category": "Monitoring",
+    "remediation_category": "Logging and Monitoring",
     "remediation_effort": "Moderate",
     "validation_tools": [
       "dredge"
@@ -13027,7 +13027,7 @@
     "kev": false,
     "remediation_brief": "Restrict zone transfers to authorized secondary DNS servers only. In DNS Manager: right-click zone > Properties > Zone Transfers > uncheck 'Allow zone transfers' or select 'Only to the following servers' and list authorized secondaries. For AD-integrated zones, consider disabling zone transfers entirely and relying on AD replication. Verify with: nslookup > set type=AXFR > ls -d <domain>.",
     "remediation_component": "Configuration",
-    "remediation_category": "Network",
+    "remediation_category": "Network Security",
     "remediation_effort": "Easy",
     "validation_tools": [
       "dredge"
@@ -13070,7 +13070,7 @@
     "kev": false,
     "remediation_brief": "Update the Sysmon configuration to include all critical event types. Use a comprehensive config like SwiftOnSecurity/sysmon-config or olafhartong/sysmon-modular as a baseline. Deploy with: sysmon -c <config.xml>.",
     "remediation_component": "",
-    "remediation_category": "Monitoring",
+    "remediation_category": "Logging and Monitoring",
     "remediation_effort": "Easy",
     "validation_tools": [],
     "id": "DR-SYS-014",
