@@ -79,16 +79,17 @@ _FLUSH_DIR: Path | None = None
 _FLUSH_FINDINGS: list = []
 
 _fdb = None
-_db_path = os.environ.get("PR0T31N_FINDINGS_DB")
-if _db_path:
-    try:
-        import sys as _s
-        if "/opt/pr0t31n/shared" not in _s.path:
-            _s.path.insert(0, "/opt/pr0t31n/shared")
-        import pr0t31n_findings_db
-        _fdb = pr0t31n_findings_db.FindingsDB(_db_path)
-    except Exception:
-        _fdb = None
+_db_path = os.environ.get("PR0T31N_FINDINGS_DB") or os.path.join(os.getcwd(), "findings.db")
+try:
+    import sys as _s
+    if "/opt/pr0t31n/shared" not in _s.path:
+        _s.path.insert(0, "/opt/pr0t31n/shared")
+    import pr0t31n_findings_db
+    _fdb = pr0t31n_findings_db.FindingsDB(_db_path)
+except Exception:
+    _fdb = None
+if _fdb and _ie:
+    _ie.init_db(_fdb)
 
 
 def _flush_findings_to_disk():
@@ -190,13 +191,14 @@ def run_analyzers(data, hostname, ip, os_info, threat_intel, skip=None):
             findings = analyzer.analyze()
             all_findings.extend(findings)
             _FLUSH_FINDINGS.extend(findings)
-            _flush_findings_to_disk()
             for _f in findings:
                 if _fdb:
                     try:
                         _fdb.insert_finding(_f)
                     except Exception:
                         pass
+            _flush_findings_to_disk()
+            for _f in findings:
                 if MANAGED:
                     try:
                         print(_CP_FINDING + json.dumps({
@@ -284,30 +286,7 @@ def write_output(findings, summary, output_dir, client_short=None, data=None):
     findings_csv = out / "findings.csv"
     summary_json = out / "summary.json"
 
-    write_findings_json(findings, findings_json)
-    write_findings_csv(findings, findings_csv)
-    summary_json.write_text(json.dumps(summary, indent=2), encoding="utf-8")
-
-    if _us:
-        try:
-            meta = _us.make_meta(
-                tool="dredge",
-                version=VERSION,
-                client_short=client_short or "unknown",
-            )
-            _us.write_meta(meta, out / "meta.json")
-        except Exception:
-            pass
-
-    if _write_intel is not None:
-        try:
-            written = _write_intel(data, out)
-            for fn in written:
-                _log(f"  {fn}: written")
-        except Exception:
-            pass
-
-    if _ie and MANAGED and data:
+    if _ie and data:
         try:
             _sw = data.get("installed_software", [])
             if isinstance(_sw, list) and _sw:
@@ -400,6 +379,29 @@ def write_output(findings, summary, output_dir, client_short=None, data=None):
                         })
                 if _adap_rows:
                     _ie.emit_intel("network_adapter", _adap_rows, bulk=True)
+        except Exception:
+            pass
+
+    write_findings_json(findings, findings_json)
+    write_findings_csv(findings, findings_csv)
+    summary_json.write_text(json.dumps(summary, indent=2), encoding="utf-8")
+
+    if _us:
+        try:
+            meta = _us.make_meta(
+                tool="dredge",
+                version=VERSION,
+                client_short=client_short or "unknown",
+            )
+            _us.write_meta(meta, out / "meta.json")
+        except Exception:
+            pass
+
+    if _write_intel is not None:
+        try:
+            written = _write_intel(data, out)
+            for fn in written:
+                _log(f"  {fn}: written")
         except Exception:
             pass
 
@@ -530,7 +532,7 @@ def main():
     _log(f"OS: {os_info.get('os_name', 'Unknown')}")
     _log(f"Domain joined: {os_info.get('is_domain_joined', False)}")
 
-    if _ie and MANAGED:
+    if _ie:
         try:
             _si = data.get("system_info", {})
             if isinstance(_si, dict):
@@ -589,13 +591,13 @@ def main():
             ext_findings = p.parse()
             findings.extend(ext_findings)
             _FLUSH_FINDINGS.extend(ext_findings)
-            _flush_findings_to_disk()
             if _fdb:
                 for _ef in ext_findings:
                     try:
                         _fdb.insert_finding(_ef)
                     except Exception:
                         pass
+            _flush_findings_to_disk()
             _log(f"  {pname}: {len(ext_findings)} findings ingested")
         except Exception as e:
             _log(f"  {pname} parser failed: {e}", level="ERROR")
