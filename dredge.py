@@ -15,6 +15,14 @@ MANAGED = os.environ.get("DREDGE_MANAGED") == "1" or os.environ.get("CRUCIBLE_MA
 _CP_FINDING = "__CRUCIBLE_FINDING__:"
 
 try:
+    import sys as _sys_ie
+    if "/opt/pr0t31n/shared" not in _sys_ie.path:
+        _sys_ie.path.insert(0, "/opt/pr0t31n/shared")
+    import pr0t31n_intel_emitter as _ie
+except ImportError:
+    _ie = None
+
+try:
     _sp = "/opt/pr0t31n/shared"
     if _sp not in sys.path:
         sys.path.insert(0, _sp)
@@ -299,6 +307,102 @@ def write_output(findings, summary, output_dir, client_short=None, data=None):
         except Exception:
             pass
 
+    if _ie and MANAGED and data:
+        try:
+            _sw = data.get("installed_software", [])
+            if isinstance(_sw, list) and _sw:
+                _sw_rows = []
+                for _s in _sw:
+                    if isinstance(_s, dict):
+                        _sw_rows.append({
+                            "software": _s.get("name", ""),
+                            "version": _s.get("version", ""),
+                            "publisher": _s.get("publisher", ""),
+                            "install_date": _s.get("install_date", ""),
+                            "ip": "",
+                            "port": 0,
+                        })
+                if _sw_rows:
+                    _ie.emit_intel("software", _sw_rows, bulk=True)
+        except Exception:
+            pass
+        try:
+            _svcs = data.get("services", [])
+            if isinstance(_svcs, list) and _svcs:
+                _svc_rows = []
+                for _sv in _svcs:
+                    if isinstance(_sv, dict):
+                        _svc_rows.append({
+                            "name": _sv.get("name", ""),
+                            "display_name": _sv.get("display_name", ""),
+                            "state": _sv.get("status", ""),
+                            "start_type": _sv.get("start_type", ""),
+                            "account": _sv.get("start_account", ""),
+                        })
+                if _svc_rows:
+                    _ie.emit_intel("service", _svc_rows, bulk=True)
+        except Exception:
+            pass
+        try:
+            _ua = data.get("user_accounts", {})
+            if isinstance(_ua, dict):
+                _user_rows = []
+                for _u in _ua.get("local_users", []):
+                    if isinstance(_u, dict):
+                        _user_rows.append({
+                            "name": _u.get("name", ""),
+                            "enabled": _u.get("enabled", False),
+                            "password_never_expires": _u.get("password_never_expires", False),
+                            "description": _u.get("description", ""),
+                        })
+                if _user_rows:
+                    _ie.emit_intel("user", _user_rows, bulk=True)
+                _admins = _ua.get("administrators_group", [])
+                if isinstance(_admins, list) and _admins:
+                    _adm_rows = []
+                    for _a in _admins:
+                        _name = _a if isinstance(_a, str) else (_a.get("name", "") if isinstance(_a, dict) else "")
+                        if _name:
+                            _adm_rows.append({"name": _name, "group": "Administrators"})
+                    if _adm_rows:
+                        _ie.emit_intel("admin_group_member", _adm_rows, bulk=True)
+        except Exception:
+            pass
+        try:
+            _op = data.get("open_ports", [])
+            if isinstance(_op, list) and _op:
+                _port_rows = []
+                for _p in _op:
+                    if isinstance(_p, dict):
+                        _port_rows.append({
+                            "port": _p.get("port", 0),
+                            "protocol": _p.get("protocol", ""),
+                            "state": _p.get("state", ""),
+                            "process": _p.get("process", ""),
+                        })
+                if _port_rows:
+                    _ie.emit_intel("open_port", _port_rows, bulk=True)
+        except Exception:
+            pass
+        try:
+            _nc = data.get("network_config", {})
+            if isinstance(_nc, dict):
+                _adap_rows = []
+                for _a in _nc.get("adapters", []):
+                    if isinstance(_a, dict):
+                        _adap_rows.append({
+                            "description": _a.get("description", ""),
+                            "ip_address": _a.get("ip_address", ""),
+                            "subnet": _a.get("subnet", ""),
+                            "gateway": _a.get("gateway", ""),
+                            "mac_address": _a.get("mac_address", ""),
+                            "dhcp_enabled": _a.get("dhcp_enabled", False),
+                        })
+                if _adap_rows:
+                    _ie.emit_intel("network_adapter", _adap_rows, bulk=True)
+        except Exception:
+            pass
+
     _log(f"Output written to {out}")
     _log(f"  findings.json: {len(findings)} findings")
     _log(f"  findings.csv: {len(findings)} rows")
@@ -425,6 +529,26 @@ def main():
     _log(f"Target: {hostname} ({ip})")
     _log(f"OS: {os_info.get('os_name', 'Unknown')}")
     _log(f"Domain joined: {os_info.get('is_domain_joined', False)}")
+
+    if _ie and MANAGED:
+        try:
+            _si = data.get("system_info", {})
+            if isinstance(_si, dict):
+                _ie.emit_intel("endpoint_status", {
+                    "hostname": hostname,
+                    "ip": ip,
+                    "os_name": os_info.get("os_name", ""),
+                    "os_version": os_info.get("os_version", ""),
+                    "os_build": os_info.get("os_build", 0),
+                    "domain_joined": os_info.get("is_domain_joined", False),
+                    "domain_name": _si.get("domain", ""),
+                    "domain_role": os_info.get("domain_role", ""),
+                    "uptime_days": _si.get("uptime_days", 0),
+                    "secure_boot": _si.get("secure_boot", False),
+                    "collector_method": data.get("collector_method", ""),
+                })
+        except Exception:
+            pass
 
     # Initialize threat intelligence
     _status("Analyzing", 5, "Loading threat intelligence")
