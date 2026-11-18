@@ -92,6 +92,74 @@ if _fdb and _ie:
     _ie.init_db(_fdb)
 
 
+def _emit_collection_intel(data):
+    """Emit all collection-derived intel immediately after data is loaded."""
+    if not _ie or not isinstance(data, dict):
+        return
+    try:
+        _sw = data.get("installed_software", [])
+        if isinstance(_sw, list) and _sw:
+            _sw_rows = [{"software": s.get("name", ""), "version": s.get("version", ""),
+                         "publisher": s.get("publisher", ""), "install_date": s.get("install_date", ""),
+                         "ip": "", "port": 0}
+                        for s in _sw if isinstance(s, dict)]
+            if _sw_rows:
+                _ie.emit_intel("software", _sw_rows, bulk=True)
+    except Exception:
+        pass
+    try:
+        _svcs = data.get("services", [])
+        if isinstance(_svcs, list) and _svcs:
+            _svc_rows = [{"name": sv.get("name", ""), "display_name": sv.get("display_name", ""),
+                          "state": sv.get("status", ""), "start_type": sv.get("start_type", ""),
+                          "account": sv.get("start_account", "")}
+                         for sv in _svcs if isinstance(sv, dict)]
+            if _svc_rows:
+                _ie.emit_intel("service", _svc_rows, bulk=True)
+    except Exception:
+        pass
+    try:
+        _ua = data.get("user_accounts", {})
+        if isinstance(_ua, dict):
+            _user_rows = [{"name": u.get("name", ""), "enabled": u.get("enabled", False),
+                           "password_never_expires": u.get("password_never_expires", False),
+                           "description": u.get("description", "")}
+                          for u in _ua.get("local_users", []) if isinstance(u, dict)]
+            if _user_rows:
+                _ie.emit_intel("user", _user_rows, bulk=True)
+            _admins = _ua.get("administrators_group", [])
+            if isinstance(_admins, list) and _admins:
+                _adm_rows = [{"name": (a if isinstance(a, str) else (a.get("name", "") if isinstance(a, dict) else "")),
+                              "group": "Administrators"}
+                             for a in _admins
+                             if (a if isinstance(a, str) else (a.get("name", "") if isinstance(a, dict) else ""))]
+                if _adm_rows:
+                    _ie.emit_intel("admin_group_member", _adm_rows, bulk=True)
+    except Exception:
+        pass
+    try:
+        _op = data.get("open_ports", [])
+        if isinstance(_op, list) and _op:
+            _port_rows = [{"port": p.get("port", 0), "protocol": p.get("protocol", ""),
+                           "state": p.get("state", ""), "process": p.get("process", "")}
+                          for p in _op if isinstance(p, dict)]
+            if _port_rows:
+                _ie.emit_intel("open_port", _port_rows, bulk=True)
+    except Exception:
+        pass
+    try:
+        _nc = data.get("network_config", {})
+        if isinstance(_nc, dict):
+            _adap_rows = [{"description": a.get("description", ""), "ip_address": a.get("ip_address", ""),
+                           "subnet": a.get("subnet", ""), "gateway": a.get("gateway", ""),
+                           "mac_address": a.get("mac_address", ""), "dhcp_enabled": a.get("dhcp_enabled", False)}
+                          for a in _nc.get("adapters", []) if isinstance(a, dict)]
+            if _adap_rows:
+                _ie.emit_intel("network_adapter", _adap_rows, bulk=True)
+    except Exception:
+        pass
+
+
 def _flush_findings_to_disk():
     if _FLUSH_DIR is None:
         return
@@ -551,6 +619,8 @@ def main():
                 })
         except Exception:
             pass
+
+    _emit_collection_intel(data)
 
     # Initialize threat intelligence
     _status("Analyzing", 5, "Loading threat intelligence")
