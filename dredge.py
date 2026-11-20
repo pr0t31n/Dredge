@@ -5,6 +5,8 @@ import csv
 import json
 import os
 import sys
+import tempfile
+import threading
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -40,6 +42,75 @@ _pause: "_pp.PauseManager | None" = None  # type: ignore[name-defined]
 def _check_pause():
     if _pause is not None and _pause.check_and_pause():
         sys.exit(_pp.EXIT_PAUSED)
+
+
+class _ProgressManager:
+    """Thread-safe checkpoint for scan recovery."""
+    def __init__(self, checkpoint_file):
+        self._file = Path(checkpoint_file)
+        self._lock = threading.Lock()
+        self._state = self._load()
+    def _load(self):
+        if self._file.exists():
+            try:
+                data = json.loads(self._file.read_text(encoding="utf-8"))
+                data.setdefault("version", 1)
+                data.setdefault("completed_phases", [])
+                data.setdefault("phase_status", {})
+                return data
+            except Exception:
+                pass
+        return {"version": 1, "started": datetime.now(timezone.utc).isoformat(),
+                "completed_phases": [], "phase_status": {}}
+    def _save(self):
+        self._file.parent.mkdir(parents=True, exist_ok=True)
+        fd, tmp = tempfile.mkstemp(dir=str(self._file.parent), suffix=".tmp")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                json.dump(self._state, f, indent=2)
+            os.replace(tmp, str(self._file))
+        except Exception:
+            try: os.unlink(tmp)
+            except Exception: pass
+    def is_phase_complete(self, phase):
+        with self._lock:
+            return phase in self._state.get("completed_phases", [])
+    def set_phase_status(self, phase, status, label="", detail=""):
+        with self._lock:
+            self._state.setdefault("phase_status", {})[phase] = {
+                "status": status, "label": label or phase,
+                "detail": detail, "updated_at": datetime.now(timezone.utc).isoformat(),
+            }
+            if status == "complete":
+                lst = self._state.setdefault("completed_phases", [])
+                if phase not in lst:
+                    lst.append(phase)
+            self._save()
+    def save_scan_state(self, state):
+        with self._lock:
+            self._state["scan_state"] = state
+            self._state["version"] = 2
+            self._state["checkpoint_ts"] = datetime.now(timezone.utc).isoformat()
+            self._save()
+    def load_scan_state(self):
+        with self._lock:
+            return self._state.get("scan_state", {})
+    def has_resumable_state(self):
+        with self._lock:
+            return (self._state.get("version", 1) >= 2
+                    and bool(self._state.get("scan_state")))
+    def prepare_resume(self):
+        with self._lock:
+            ps = self._state.get("phase_status", {})
+            for k, v in ps.items():
+                if v.get("status") in ("running", "error"):
+                    v["status"] = "pending"
+                    v["updated_at"] = datetime.now(timezone.utc).isoformat()
+            self._save()
+            return dict(self._state)
+
+_PM: "_ProgressManager | None" = None
+
 
 from analyzers.system import SystemAnalyzer
 from analyzers.hardening import HardeningAnalyzer
@@ -251,6 +322,12 @@ def run_analyzers(data, hostname, ip, os_info, threat_intel, skip=None):
             _log(f"Skipping analyzer: {name}")
             continue
 
+        _ck_key = f"analyzer_{name}"
+        if _PM is not None and _PM.is_phase_complete(_ck_key):
+            _log(f"[✓] Analyzer {name} already complete — skipping")
+            analyzers_run.append(name)
+            continue
+
         _status("Analyzing", int(len(analyzers_run) / len(analyzer_classes) * 100), name)
         _log(f"Running analyzer: {name}")
 
@@ -287,6 +364,8 @@ def run_analyzers(data, hostname, ip, os_info, threat_intel, skip=None):
                         pass
             analyzers_run.append(name)
             _log(f"  {name}: {len(findings)} findings")
+            if _PM is not None:
+                _PM.set_phase_status(_ck_key, "complete", f"Analyzer: {name}")
         except Exception as e:
             _log(f"Analyzer {name} failed: {e}", level="ERROR")
             analyzers_failed.append({"analyzer": name, "error": str(e)})
@@ -537,11 +616,15 @@ def main():
     _status("Starting", 0, f"Dredge v{VERSION}")
     start_time = datetime.now(timezone.utc)
 
-    global _pause
+    global _pause, _PM
     _out_dir = Path(args.output_dir).resolve()
     _out_dir.mkdir(parents=True, exist_ok=True)
     global _FLUSH_DIR
     _FLUSH_DIR = _out_dir
+
+    _PM = _ProgressManager(_out_dir / "checkpoint.json")
+    _PM.prepare_resume()
+
     if _pp is not None:
         _pause = _pp.PauseManager(_out_dir, "dredge")
         _pause.start_watcher(grace_period=60)
@@ -630,21 +713,40 @@ def main():
     _check_pause()
 
     # Run analyzers
-    _status("Analyzing", 10, "Running security analyzers")
-    findings, analyzers_run, analyzers_failed = run_analyzers(
-        data, hostname, ip, os_info, ti, skip=args.skip_analyzers)
+    if _PM is not None and _PM.is_phase_complete("analyzers"):
+        _log("[✓] Analyzers already complete — loading prior findings from disk")
+        _prior_findings_path = _out_dir / "findings.json"
+        if _prior_findings_path.exists():
+            try:
+                findings = json.loads(_prior_findings_path.read_text(encoding="utf-8"))
+            except Exception:
+                findings = []
+        else:
+            findings = []
+        analyzers_run = []
+        analyzers_failed = []
+    else:
+        _status("Analyzing", 10, "Running security analyzers")
+        findings, analyzers_run, analyzers_failed = run_analyzers(
+            data, hostname, ip, os_info, ti, skip=args.skip_analyzers)
+        if _PM is not None:
+            _PM.set_phase_status("analyzers", "complete", "Security Analyzers")
 
     _check_pause()
 
     # External tool parser ingestion
-    _ext_parsers = {
-        "seatbelt": ("parsers.seatbelt", "SeatbeltParser", args.parse_seatbelt),
-        "winpeas": ("parsers.winpeas", "WinPEASParser", args.parse_winpeas),
-        "hardeningkitty": ("parsers.hardeningkitty", "HardeningKittyParser", args.parse_hardeningkitty),
-        "bloodhound": ("parsers.bloodhound", "BloodHoundParser", args.parse_bloodhound),
-        "pingcastle": ("parsers.pingcastle", "PingCastleParser", args.parse_pingcastle),
-        "privesccheck": ("parsers.privesccheck", "PrivescCheckParser", args.parse_privesccheck),
-    }
+    if _PM is not None and _PM.is_phase_complete("ext_parsers"):
+        _log("[✓] External parser ingestion already complete — skipping")
+        _ext_parsers = {}
+    else:
+        _ext_parsers = {
+            "seatbelt": ("parsers.seatbelt", "SeatbeltParser", args.parse_seatbelt),
+            "winpeas": ("parsers.winpeas", "WinPEASParser", args.parse_winpeas),
+            "hardeningkitty": ("parsers.hardeningkitty", "HardeningKittyParser", args.parse_hardeningkitty),
+            "bloodhound": ("parsers.bloodhound", "BloodHoundParser", args.parse_bloodhound),
+            "pingcastle": ("parsers.pingcastle", "PingCastleParser", args.parse_pingcastle),
+            "privesccheck": ("parsers.privesccheck", "PrivescCheckParser", args.parse_privesccheck),
+        }
     for pname, (mod_path, cls_name, fpath) in _ext_parsers.items():
         if not fpath:
             continue
@@ -671,6 +773,8 @@ def main():
             _log(f"  {pname}: {len(ext_findings)} findings ingested")
         except Exception as e:
             _log(f"  {pname} parser failed: {e}", level="ERROR")
+    if _ext_parsers and _PM is not None:
+        _PM.set_phase_status("ext_parsers", "complete", "External Parser Ingestion")
 
     # API enrichment
     if not args.skip_enrichment and (args.vt_api_key or args.abuseipdb_key):
